@@ -1,0 +1,27 @@
+# docker-compose.yml
+# Runs ChromaDB locally for vector storage
+# Usage: docker compose up -d
+
+version: "3.8"
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: novabank-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - ALLOW_RESET=TRUE          # lets seed script wipe & re-seed
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  chroma_data:
+    driver: local
