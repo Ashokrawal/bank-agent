@@ -142,7 +142,7 @@ function SignInContent() {
         </div>
 
         <p style={{ textAlign: "center", marginTop: 24, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link href="/onboard" style={{ color: "var(--text-brand)", textDecoration: "none", fontWeight: 500 }}>
             Open one in 10 minutes →
           </Link>

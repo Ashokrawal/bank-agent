@@ -23,7 +23,6 @@ const DB_PATH = path.join(process.cwd(), ".novabank-db.sqlite");
 
 // ── Global singleton (survives Next.js hot-reload in dev) ─────────────────────
 declare global {
-  // eslint-disable-next-line no-var
   var __novabankDb: SqlDb | undefined;
 }
 
