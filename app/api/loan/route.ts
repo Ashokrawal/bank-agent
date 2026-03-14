@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       );
   }
 
-  const allowedEmployment = ["employed", "self-employed", "contractor", "part-time", "unemployed"];
+  const allowedEmployment = ["full-time", "part-time", "self-employed", "contractor", "retired"];
   if (!allowedEmployment.includes(String(employment).toLowerCase()))
     return NextResponse.json({ error: "Invalid employment type" }, { status: 400 });
 

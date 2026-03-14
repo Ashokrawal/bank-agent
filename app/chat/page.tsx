@@ -331,6 +331,10 @@ function InlineAppointmentForm() {
       setError("Please select a preferred date.");
       return;
     }
+    if (selectedDayInfo?.isWeekend) {
+      setError("Please select a weekday — we are not open on weekends.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -363,11 +367,23 @@ function InlineAppointmentForm() {
   };
 
   const [minDateStr, setMinDateStr] = useState("");
+  const [maxDateStr, setMaxDateStr] = useState("");
   useEffect(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    setMinDateStr(d.toISOString().split("T")[0]);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setMinDateStr(tomorrow.toISOString().split("T")[0]);
+    const threeMonths = new Date();
+    threeMonths.setMonth(threeMonths.getMonth() + 3);
+    setMaxDateStr(threeMonths.toISOString().split("T")[0]);
   }, []);
+
+  const selectedDayInfo = (() => {
+    if (!form.preferredDate) return null;
+    const d = new Date(form.preferredDate + "T12:00:00");
+    const day = d.getDay(); // 0=Sun, 6=Sat
+    const label = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    return { label, isWeekend: day === 0 || day === 6 };
+  })();
 
   if (submitted)
     return (
@@ -430,10 +446,22 @@ function InlineAppointmentForm() {
           <input
             type="date"
             min={minDateStr}
+            max={maxDateStr}
             value={form.preferredDate}
             onChange={(e) => setField("preferredDate", e.target.value)}
             style={fieldInput}
           />
+          {selectedDayInfo && (
+            <div style={{
+              fontSize: "0.72rem",
+              marginTop: 3,
+              color: selectedDayInfo.isWeekend ? "var(--error-700, #b91c1c)" : "var(--text-muted)",
+            }}>
+              {selectedDayInfo.isWeekend
+                ? `${selectedDayInfo.label} — weekends unavailable`
+                : selectedDayInfo.label}
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <label
@@ -446,13 +474,17 @@ function InlineAppointmentForm() {
             onChange={(e) => setField("preferredTime", e.target.value)}
             style={fieldInput}
           >
-            {["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00"].map(
-              (t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ),
-            )}
+            {[
+              { value: "09:00", label: "9:00 AM" },
+              { value: "10:00", label: "10:00 AM" },
+              { value: "11:00", label: "11:00 AM" },
+              { value: "12:00", label: "12:00 PM (Noon)" },
+              { value: "14:00", label: "2:00 PM" },
+              { value: "15:00", label: "3:00 PM" },
+              { value: "16:00", label: "4:00 PM" },
+            ].map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
         </div>
       </div>

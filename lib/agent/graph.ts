@@ -570,7 +570,6 @@ function build() {
     .addNode("account", accountNode)
     .addNode("spending", spendingNode)
     .addNode("onboard", onboardNode)
-
     .addNode("respond", responderNode)
 
     .addEdge("__start__", "router")
