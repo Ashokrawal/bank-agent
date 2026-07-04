@@ -19,7 +19,8 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         try {
-          const user = await getUserByEmail(credentials.email);
+          const normalizedEmail = credentials.email.trim().toLowerCase();
+          const user = await getUserByEmail(normalizedEmail);
           if (!user) return null;
           // Demo: accept "demo123" for all mock users
           // Production: bcrypt.compare(credentials.password, user.password_hash)
