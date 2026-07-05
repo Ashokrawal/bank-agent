@@ -19,7 +19,7 @@ function isAdmin(email: string | null | undefined): boolean {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -30,7 +30,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   const rows = await dbQuery("SELECT * FROM appointments WHERE id = ?", [id]);
   if (!rows.length) {
@@ -41,7 +41,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { status, notes } = body;
+  const { status } = body;
 
   if (!["confirmed", "cancelled"].includes(status)) {
     return NextResponse.json(
@@ -50,12 +50,7 @@ export async function PATCH(
     );
   }
 
-  await dbRun(
-    `UPDATE appointments
-     SET status = ?, reviewed_at = datetime('now')
-     WHERE id = ?`,
-    [status, id],
-  );
+  await dbRun(`UPDATE appointments SET status = ? WHERE id = ?`, [status, id]);
 
   return NextResponse.json({ success: true, id, status });
 }

@@ -56,8 +56,10 @@ export default function AppointmentDetailPage() {
       body: JSON.stringify({ status, notes }),
     });
 
+    console.log("PATCH status:", res.status); // add this
+
     if (res.ok) {
-      router.push("/admin");
+      setTimeout(() => router.push("/admin"), 100);
     } else {
       const data = await res.json();
       setError(data.error ?? "Something went wrong.");
