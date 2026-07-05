@@ -13,26 +13,22 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { get } from "http";
 import path from "path";
 
 // singleton - we only want one connection to the MCP server
 // not a new one on every user message
-
 let mcpClient: Client | null = null;
 
 export async function getMcpClient(): Promise<Client> {
   // if already connected, return the existing client
   // this is the singleton pattern - expensive connections get reused
-
   if (mcpClient) return mcpClient;
 
   // path to the MCP server file we just built
-  const serverPath = path.join(process.cwd(), "lib/mcp/knowledge-server.js");
+  const serverPath = path.join(process.cwd(), "lib/mcp/knowledge-server.ts");
 
   // StdioClientTransport spawns the server as a child process
   // and sets up the stdin/stdout pipes automatically
-
   const transport = new StdioClientTransport({
     command: "npx",
     args: ["tsx", serverPath],
@@ -51,8 +47,8 @@ export async function getMcpClient(): Promise<Client> {
 
   // connect - this actually spawns the server process
   // and does the MCP handshake
-
   await mcpClient.connect(transport);
+
   return mcpClient;
 }
 
@@ -63,10 +59,25 @@ export async function getMcpClient(): Promise<Client> {
  * Hides all the MCP complexity - callers just pass a query,
  * get back a formatted string of relevant bank documents.
  */
-
 export async function searchKnowledgeBase(
   query: string,
-  filterType?: "faqs" | "product" | "policy" | "guide" | "any",
+  filterType?: "faq" | "product" | "policy" | "guide" | "any",
 ): Promise<string> {
   const client = await getMcpClient();
+
+  // call the tool on the MCP server by name
+  // args must match the Zod schema we defined in knowledge-server.ts
+  const result = await client.callTool({
+    name: "search_knowledge_base",
+    arguments: {
+      query,
+      ...(filterType && { filter_type: filterType }),
+    },
+  });
+
+  // extract the text content from the MCP response
+  const content = result.content as Array<{ type: string; text: string }>;
+  const textBlock = content.find((c) => c.type === "text");
+
+  return textBlock?.text ?? "No relevant information found.";
 }
