@@ -9,7 +9,7 @@
  * into ChromaDB with its own embedding vector.
  */
 
-import { FAQ_DATA } from "./Faqs";
+import { FAQ_DATA } from "./faqs";
 import { PRODUCT_DATA } from "@/data/knowledge/products";
 import { POLICY_DATA, GUIDE_DATA } from "@/data/knowledge/guides";
 
