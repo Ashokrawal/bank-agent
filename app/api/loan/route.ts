@@ -1,6 +1,6 @@
 /**
  * POST /api/loan  — save loan application + generate AI summary
- * GET  /api/loan  — list applications (staff)
+ * GET  /api/loan  — list applications (admin sees all, customers see own)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
@@ -12,24 +12,32 @@ import {
 } from "@/lib/db/sqlite";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage } from "@langchain/core/messages";
+import { isAdminEmail } from "@/lib/admin";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
 
-// ── Staff GET ─────────────────────────────────────────────────────────────────
+// GET - admin sees all, customers see only their own
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session)
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const userId = (session.user as { id?: string }).id ?? "";
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") ?? undefined;
-  const apps = await getLoanApplications(status, userId);
+
+  // if admin, pass no userId filter so all applications come back
+  // if customer, filter to their own applications only
+  const admin = isAdminEmail(session.user?.email);
+  const userId = admin
+    ? undefined
+    : ((session.user as { id?: string }).id ?? "");
+
+  const apps = await getLoanApplications(status, admin ? undefined : userId);
   return NextResponse.json({ applications: apps });
 }
 
-// ── Customer POST ─────────────────────────────────────────────────────────────
+// POST - customer submits a loan application
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user)
@@ -48,23 +56,21 @@ export async function POST(req: NextRequest) {
     ltv,
   } = body;
 
-  // Validate required fields exist
   if (!salary || !propertyValue || !deposit || !employment)
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400 },
     );
 
-  // Validate all financial values are positive numbers within sane ranges
   const financialFields: Record<string, [number, number]> = {
-    salary:        [100,    1_000_000],
-    expenses:      [0,      500_000],
-    deposit:       [1,      10_000_000],
-    propertyValue: [1,      50_000_000],
-    existingDebts: [0,      500_000],
-    loanAmount:    [1,      20_000_000],
-    dti:           [0,      200],
-    ltv:           [0,      200],
+    salary: [100, 1_000_000],
+    expenses: [0, 500_000],
+    deposit: [1, 10_000_000],
+    propertyValue: [1, 50_000_000],
+    existingDebts: [0, 500_000],
+    loanAmount: [1, 20_000_000],
+    dti: [0, 200],
+    ltv: [0, 200],
   };
 
   for (const [field, [min, max]] of Object.entries(financialFields)) {
@@ -76,11 +82,20 @@ export async function POST(req: NextRequest) {
       );
   }
 
-  const allowedEmployment = ["full-time", "part-time", "self-employed", "contractor", "retired"];
+  const allowedEmployment = [
+    "full-time",
+    "part-time",
+    "self-employed",
+    "contractor",
+    "retired",
+  ];
   if (!allowedEmployment.includes(String(employment).toLowerCase()))
-    return NextResponse.json({ error: "Invalid employment type" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid employment type" },
+      { status: 400 },
+    );
 
-  // Generate AI summary
+  // generate AI underwriter summary
   let aiSummary = "";
   try {
     const llm = new ChatGoogleGenerativeAI({
@@ -101,7 +116,7 @@ export async function POST(req: NextRequest) {
     aiSummary = res.content as string;
   } catch (e) {
     console.error("AI summary error:", e);
-    aiSummary = "Summary unavailable — please review manually.";
+    aiSummary = "Summary unavailable - please review manually.";
   }
 
   const id = uuid();
