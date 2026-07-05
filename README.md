@@ -1,6 +1,6 @@
 # NovaBanк - AI Banking Assistant
 
-NovaBanк is a full-stack AI banking demo built in two iterations. Prototype.1 used a keyword router. Prototype.2 replaced it with a proper MCP agent - the model decides which tool to call based on meaning, not keyword matching.
+A full-stack AI banking demo built across two prototypes. Prototype.1 used a keyword router. Prototype.2 replaced it with a proper MCP agent plus a staff admin panel for reviewing applications.
 
 Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
@@ -10,8 +10,8 @@ Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
 **Prototype.1 (old)**
 
-- Used a keyword router to save API tokens on the free Gemini tier
-- RAG only ran for the "else" branch - balance checks never hit ChromaDB
+- Keyword router - if message contains "balance" go to branch A
+- RAG only ran on the "else" branch - balance checks never hit ChromaDB
 - k=2 chunk retrieval - too few for complex questions
 - 24 documents in the knowledge base
 - CTA logic scattered across the API route
@@ -20,14 +20,14 @@ Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
 - No router - Gemini reads tool schemas and decides what to call
 - Every query goes through the same pipeline
-- k=4 chunk retrieval via MCP server
+- k=4 chunk retrieval via a real MCP server
 - 54 documents across FAQs, product sheets, policies, and guides
-- One MCP server exposes ChromaDB as a proper protocol-compliant tool
-- "I need a loan and book an appointment" triggers both tools in one turn
+- One MCP server exposes ChromaDB as a protocol-compliant tool
+- Multi-intent in one turn - "I need a loan and book an appointment" triggers both
 
 ---
 
-## How the agent works now
+## How the agent works
 
 ```text
 User message
@@ -73,7 +73,7 @@ Anyone can ask:
 - "How do I dispute a transaction?"
 - "What is the FSCS protection limit?"
 
-Signed-in users get:
+Signed-in customers get:
 
 - Live account balances from SQLite
 - Recent transaction history
@@ -81,6 +81,14 @@ Signed-in users get:
 - Inline loan application form
 - Inline appointment booking
 - Inline credit card application
+
+Staff (admin) get:
+
+- Staff portal at /admin - separate from the customer interface
+- Table of all loan applications with AI underwriter summaries
+- Table of all appointment bookings
+- Approve, reject, confirm, or cancel with notes
+- Status updates saved back to SQLite in real time
 
 ---
 
@@ -156,13 +164,23 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Demo accounts
+## Accounts
+
+**Customer accounts**
 
 | Email                      | Password  |
 | -------------------------- | --------- |
 | `demo@novabank.com`        | `demo123` |
 | `james.carter@example.com` | `demo123` |
 | `sofia.patel@example.com`  | `demo123` |
+
+**Staff account**
+
+| Email                | Password             | Access            |
+| -------------------- | -------------------- | ----------------- |
+| `admin@novabank.com` | `NovaBanк@Admin2025` | Staff portal only |
+
+Admin logs straight into `/admin`. Customer nav links are hidden for admin accounts. Regular users are blocked from `/admin`.
 
 ---
 
@@ -172,32 +190,41 @@ Open [http://localhost:3000](http://localhost:3000).
 bank-agent/
 |
 +-- app/
-|   +-- chat/page.tsx            # Main chat interface
-|   +-- account/page.tsx         # Account dashboard
+|   +-- chat/page.tsx              # Main chat interface
+|   +-- account/page.tsx           # Account dashboard
+|   +-- admin/page.tsx             # Staff portal dashboard
+|   +-- admin/loans/[id]/page.tsx  # Loan review page
+|   +-- admin/appointments/[id]/   # Appointment review page
 |   +-- api/
-|       +-- chat/route.ts        # Entry point - runs the agent
-|       +-- loan/                # Loan application
-|       +-- appointment/         # Appointment booking
-|       +-- credit-card/         # Credit card application
+|       +-- chat/route.ts          # Entry point - runs the agent
+|       +-- loan/                  # Loan application + staff GET
+|       +-- loan/[id]/             # Staff approve/reject
+|       +-- appointment/           # Appointment booking + staff GET
+|       +-- appointment/[id]/      # Staff confirm/cancel
+|       +-- credit-card/           # Credit card application
 |
 +-- lib/
-|   +-- agent/mcpGraph.ts        # Agent brain - tool calling loop
+|   +-- agent/mcpGraph.ts          # Agent brain - tool calling loop
 |   +-- mcp/
-|   |   +-- knowledge-server.ts  # MCP server exposing ChromaDB
-|   |   +-- client.ts            # MCP client - connects agent to server
-|   +-- db/sqlite.ts             # Database queries
-|   +-- auth.ts                  # Auth config
+|   |   +-- knowledge-server.ts    # MCP server exposing ChromaDB
+|   |   +-- client.ts              # MCP client - connects agent to server
+|   +-- db/sqlite.ts               # Database queries
+|   +-- auth.ts                    # Auth config
+|   +-- admin.ts                   # Centralised admin email check
+|
++-- components/
+|   +-- layout/Navbar.tsx          # Nav - hides customer links for admin
 |
 +-- data/
 |   +-- knowledge/
-|   |   +-- faqs.ts              # 30 FAQs
-|   |   +-- products.ts          # 11 product sheets
-|   |   +-- guides.ts            # 5 policies + 8 how-to guides
-|   |   +-- index.ts             # Combines all 54 documents
-|   +-- mock-bank-data.ts        # SQLite seed data
+|   |   +-- faqs.ts                # 30 FAQs
+|   |   +-- products.ts            # 11 product sheets
+|   |   +-- guides.ts              # 5 policies + 8 how-to guides
+|   |   +-- index.ts               # Combines all 54 documents
+|   +-- mock-bank-data.ts          # SQLite seed data
 |
 +-- scripts/
-|   +-- seed-chroma.ts           # Embeds knowledge base into ChromaDB
+|   +-- seed-chroma.ts             # Embeds knowledge base into ChromaDB
 |
 +-- docker-compose.yml
 ```
@@ -216,14 +243,26 @@ ChromaDB gets wiped and rebuilt from scratch. The agent picks up the new content
 
 ---
 
+## Branch history
+
+Three branches show the build progression:
+
+- `prototype.2` - MCP agent, tool calling, 54 doc knowledge base
+- `feature/admin-panel` - staff portal, loan and appointment review
+- `main` - everything merged, fully up to date
+
+---
+
 ## Security
 
 - All financial API routes require an active session
-- User isolation enforced server-side - users only see their own data
+- Admin routes protected by middleware and role check
+- User isolation enforced server-side
 - Input guardrail blocks prompt injection before reaching the LLM
 - Output guardrail flags financial responses generated without tool use
 - Conversation history capped at 6 turns
 - Account numbers masked to last 4 digits in all responses
+- Admin and customer accounts have separate passwords
 
 ---
 
@@ -236,6 +275,7 @@ ChromaDB gets wiped and rebuilt from scratch. The agent picks up the new content
 - [ ] Add proper audit logging
 - [ ] Set up automated re-seeding when knowledge docs change
 - [ ] KYC provider for real identity verification
+- [ ] Email notifications when loan/appointment status changes
 
 ---
 
