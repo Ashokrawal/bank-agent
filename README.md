@@ -10,7 +10,7 @@ Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
 **Prototype.1 (old)**
 
-- Keyword router - if message contains "balance" go to branch A
+- Used a keyword router to save API tokens on the free Gemini tier
 - RAG only ran for the "else" branch - balance checks never hit ChromaDB
 - k=2 chunk retrieval - too few for complex questions
 - 24 documents in the knowledge base
@@ -29,33 +29,35 @@ Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
 ## How the agent works now
 
+```text
 User message
-|
-v
+    |
+    v
 Input guardrail (blocks injection attempts)
-|
-v
+    |
+    v
 Gemini reads message + sees 7 tool schemas
-|
-v
+    |
+    v
 Gemini picks the right tool(s) based on meaning
-|
-+-- get_account_balance -> SQLite
-+-- get_transactions -> SQLite
-+-- get_spending_summary -> SQLite
-+-- search_knowledge_base -> MCP server -> ChromaDB
-+-- trigger_loan_form -> returns CTA flag
-+-- trigger_appointment -> returns CTA flag
-+-- trigger_credit_card -> returns CTA flag
-|
-v
+    |
+    +-- get_account_balance    -> SQLite
+    +-- get_transactions       -> SQLite
+    +-- get_spending_summary   -> SQLite
+    +-- search_knowledge_base  -> MCP server -> ChromaDB
+    +-- trigger_loan_form      -> returns CTA flag
+    +-- trigger_appointment    -> returns CTA flag
+    +-- trigger_credit_card    -> returns CTA flag
+    |
+    v
 Tool result feeds back to Gemini
-|
-v
+    |
+    v
 Output guardrail (checks for hallucinated figures)
-|
-v
+    |
+    v
 Response to user
+```
 
 The model understands "what's left in my account" the same as "show balance". No keyword arrays. No branches to maintain.
 
@@ -142,7 +144,7 @@ npm run chroma
 npm run seed:chroma
 ```
 
-Embeds 54 documents into ChromaDB using Gemini embedding-001. Takes about 30 seconds. Run this once, or again whenever you update the knowledge files.
+Embeds 54 documents into ChromaDB using Gemini embedding-001. Takes about 30 seconds. Run once, or re-run whenever you update the knowledge files.
 
 ### Step 5 - Run the app
 
@@ -166,37 +168,39 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Project structure
 
+```text
 bank-agent/
 |
 +-- app/
-| +-- chat/page.tsx # Main chat interface
-| +-- account/page.tsx # Account dashboard
-| +-- api/
-| +-- chat/route.ts # Entry point - runs the agent
-| +-- loan/ # Loan application
-| +-- appointment/ # Appointment booking
-| +-- credit-card/ # Credit card application
+|   +-- chat/page.tsx            # Main chat interface
+|   +-- account/page.tsx         # Account dashboard
+|   +-- api/
+|       +-- chat/route.ts        # Entry point - runs the agent
+|       +-- loan/                # Loan application
+|       +-- appointment/         # Appointment booking
+|       +-- credit-card/         # Credit card application
 |
 +-- lib/
-| +-- agent/mcpGraph.ts # Agent brain - tool calling loop
-| +-- mcp/
-| | +-- knowledge-server.ts # MCP server exposing ChromaDB
-| | +-- client.ts # MCP client - connects agent to server
-| +-- db/sqlite.ts # Database queries
-| +-- auth.ts # Auth config
+|   +-- agent/mcpGraph.ts        # Agent brain - tool calling loop
+|   +-- mcp/
+|   |   +-- knowledge-server.ts  # MCP server exposing ChromaDB
+|   |   +-- client.ts            # MCP client - connects agent to server
+|   +-- db/sqlite.ts             # Database queries
+|   +-- auth.ts                  # Auth config
 |
 +-- data/
-| +-- knowledge/
-| | +-- faqs.ts # 30 FAQs
-| | +-- products.ts # 11 product sheets
-| | +-- guides.ts # 5 policies + 8 how-to guides
-| | +-- index.ts # Combines all 54 documents
-| +-- mock-bank-data.ts # SQLite seed data
+|   +-- knowledge/
+|   |   +-- faqs.ts              # 30 FAQs
+|   |   +-- products.ts          # 11 product sheets
+|   |   +-- guides.ts            # 5 policies + 8 how-to guides
+|   |   +-- index.ts             # Combines all 54 documents
+|   +-- mock-bank-data.ts        # SQLite seed data
 |
 +-- scripts/
-| +-- seed-chroma.ts # Embeds knowledge base into ChromaDB
+|   +-- seed-chroma.ts           # Embeds knowledge base into ChromaDB
 |
 +-- docker-compose.yml
+```
 
 ---
 
