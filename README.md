@@ -1,211 +1,237 @@
-# NovaBanк — AI Banking Assistant
+# NovaBanк - AI Banking Assistant
 
-NovaBanк is a demo banking app with a built-in AI chatbot. You can ask it questions, check your balance, apply for a loan, book an advisor, and more — all without leaving the chat window.
+NovaBanк is a full-stack AI banking demo built in two iterations. Prototype.1 used a keyword router. Prototype.2 replaced it with a proper MCP agent - the model decides which tool to call based on meaning, not keyword matching.
 
-Built with Next.js, Google Gemini AI, and LangGraph.
+Built with Next.js, Google Gemini, LangGraph, and Model Context Protocol.
 
 ---
 
-## What can it do?
+## What changed between prototypes
 
-When you open the chat, you're talking to an AI that understands banking. Here's what it can help with:
+**Prototype.1 (old)**
 
-**Anyone can ask:**
+- Keyword router - if message contains "balance" go to branch A
+- RAG only ran for the "else" branch - balance checks never hit ChromaDB
+- k=2 chunk retrieval - too few for complex questions
+- 24 documents in the knowledge base
+- CTA logic scattered across the API route
+
+**Prototype.2 (current)**
+
+- No router - Gemini reads tool schemas and decides what to call
+- Every query goes through the same pipeline
+- k=4 chunk retrieval via MCP server
+- 54 documents across FAQs, product sheets, policies, and guides
+- One MCP server exposes ChromaDB as a proper protocol-compliant tool
+- "I need a loan and book an appointment" triggers both tools in one turn
+
+---
+
+## How the agent works now
+
+User message
+|
+v
+Input guardrail (blocks injection attempts)
+|
+v
+Gemini reads message + sees 7 tool schemas
+|
+v
+Gemini picks the right tool(s) based on meaning
+|
++-- get_account_balance -> SQLite
++-- get_transactions -> SQLite
++-- get_spending_summary -> SQLite
++-- search_knowledge_base -> MCP server -> ChromaDB
++-- trigger_loan_form -> returns CTA flag
++-- trigger_appointment -> returns CTA flag
++-- trigger_credit_card -> returns CTA flag
+|
+v
+Tool result feeds back to Gemini
+|
+v
+Output guardrail (checks for hallucinated figures)
+|
+v
+Response to user
+
+The model understands "what's left in my account" the same as "show balance". No keyword arrays. No branches to maintain.
+
+---
+
+## What it can do
+
+Anyone can ask:
+
 - "What are your opening hours?"
-- "How do I open an account?"
 - "What savings rates do you offer?"
-- "How do I report a lost card?"
+- "Can I get a mortgage if I am self-employed?"
+- "How do I dispute a transaction?"
+- "What is the FSCS protection limit?"
 
-**Once you're signed in:**
-- "Show me my balance" → displays your live account balances
-- "Show my transactions" → shows a table of recent payments
-- "What did I spend this month?" → gives a breakdown by category (food, transport, bills…)
-- "I want a loan" → opens an inline mortgage application form, right inside the chat
-- "Book an appointment" → lets you schedule a call with an advisor
-- "Show investment options" → displays available savings and ISA products
-- "Apply for a credit card" → opens a card application form in the chat
+Signed-in users get:
 
----
-
-## How the AI works
-
-When you send a message, it goes through a 3-step pipeline:
-
-```
-Your message
-     │
-     ▼
-1. Router        — reads keywords to figure out what you want (no AI used here)
-     │
-     ├── balance / transactions  →  2. Fetch from database
-     ├── loan / appointment      →  2. Skip lookup, show form directly
-     └── general question        →  2. Search knowledge base (ChromaDB)
-                                         │
-                                         ▼
-                                 3. Gemini AI writes the reply
-```
-
-The router avoids calling the AI for simple lookups — so checking your balance is fast and cheap.
+- Live account balances from SQLite
+- Recent transaction history
+- Spending breakdown by category
+- Inline loan application form
+- Inline appointment booking
+- Inline credit card application
 
 ---
 
 ## Tech stack
 
-| Layer | What we use |
-|---|---|
-| Frontend | Next.js 14, TypeScript, Tailwind CSS |
-| AI Agent | LangGraph + Google Gemini 2.5 Flash |
-| Knowledge base | ChromaDB (stores FAQs, products, policies as vectors) |
-| Database | SQLite via sql.js (runs in memory, no install needed) |
-| Auth | NextAuth.js with JWT sessions |
+| Layer           | What we use                          |
+| --------------- | ------------------------------------ |
+| Frontend        | Next.js 15, TypeScript, Tailwind CSS |
+| AI model        | Google Gemini 2.5 Flash              |
+| Agent framework | LangGraph (ReAct loop)               |
+| MCP server      | @modelcontextprotocol/sdk            |
+| Vector database | ChromaDB (cosine similarity, k=4)    |
+| Embeddings      | Gemini embedding-001                 |
+| Database        | SQLite via sql.js                    |
+| Auth            | NextAuth.js with JWT                 |
 
 ---
 
 ## Getting started
 
-### What you need first
+### Requirements
 
-- Node.js 18 or higher
-- Docker (for ChromaDB) **or** Python with pip
-- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- Node.js 18+
+- Docker (for ChromaDB)
+- Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-### Step 1 — Clone and install
+### Step 1 - Clone and install
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/Ashokrawal/bank-agent.git
 cd bank-agent
 npm install
 ```
 
-### Step 2 — Set up your environment
+### Step 2 - Environment variables
 
-```bash
-cp .env.local.example .env.local
-```
-
-Open `.env.local` and fill in:
+Create a `.env` file in the root:
 
 ```env
 GEMINI_API_KEY=your_key_here
-NEXTAUTH_SECRET=any-long-random-string
+NEXTAUTH_SECRET=your_random_secret_here
 NEXTAUTH_URL=http://localhost:3000
 CHROMA_URL=http://localhost:8000
 ```
 
-> To generate a good secret: `openssl rand -base64 32`
-
-### Step 3 — Start ChromaDB
-
-**With Docker (easiest):**
-```bash
-docker compose up -d
-```
-
-**With Python:**
-```bash
-pip install chromadb
-chroma run --path ./chroma-data
-```
-
-### Step 4 — Seed the databases
+Generate a secure secret:
 
 ```bash
-npm run seed
+openssl rand -base64 32
 ```
 
-This loads ~24 documents (FAQs, products, policies) into ChromaDB and creates the SQLite database with test accounts. Takes about 30 seconds.
+### Step 3 - Start ChromaDB
 
-### Step 5 — Run the app
+```bash
+npm run chroma
+```
+
+### Step 4 - Seed the knowledge base
+
+```bash
+npm run seed:chroma
+```
+
+Embeds 54 documents into ChromaDB using Gemini embedding-001. Takes about 30 seconds. Run this once, or again whenever you update the knowledge files.
+
+### Step 5 - Run the app
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and start chatting.
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
 ## Demo accounts
 
-| Email | Password | Has |
-|---|---|---|
-| `demo@novabank.com` | `demo123` | Current account + Cash ISA |
-| `james.carter@example.com` | `demo123` | Current account + Saver |
-| `sofia.patel@example.com` | `demo123` | Premium current account |
+| Email                      | Password  |
+| -------------------------- | --------- |
+| `demo@novabank.com`        | `demo123` |
+| `james.carter@example.com` | `demo123` |
+| `sofia.patel@example.com`  | `demo123` |
 
 ---
 
 ## Project structure
 
-```
 bank-agent/
-│
-├── app/                        # Pages and API routes
-│   ├── chat/page.tsx           # The main chat interface
-│   ├── account/page.tsx        # Account dashboard
-│   ├── auth/signin/page.tsx    # Login page
-│   ├── onboard/page.tsx        # Account opening flow
-│   └── api/
-│       ├── chat/               # Runs the AI agent
-│       ├── loan/               # Loan application API
-│       ├── appointment/        # Appointment booking API
-│       ├── credit-card/        # Credit card application API
-│       └── account/            # Fetches balances + transactions
-│
-├── lib/
-│   ├── agent/graph.ts          # The AI agent brain (LangGraph)
-│   ├── db/sqlite.ts            # Database queries
-│   ├── rag/chroma.ts           # Knowledge base search
-│   └── auth.ts                 # Login configuration
-│
-├── data/
-│   └── mock-bank-data.ts       # Test users, accounts, transactions, FAQs
-│
-├── scripts/
-│   └── seed.ts                 # Populates ChromaDB on first run
-│
-└── docker-compose.yml          # Starts ChromaDB
+|
++-- app/
+| +-- chat/page.tsx # Main chat interface
+| +-- account/page.tsx # Account dashboard
+| +-- api/
+| +-- chat/route.ts # Entry point - runs the agent
+| +-- loan/ # Loan application
+| +-- appointment/ # Appointment booking
+| +-- credit-card/ # Credit card application
+|
++-- lib/
+| +-- agent/mcpGraph.ts # Agent brain - tool calling loop
+| +-- mcp/
+| | +-- knowledge-server.ts # MCP server exposing ChromaDB
+| | +-- client.ts # MCP client - connects agent to server
+| +-- db/sqlite.ts # Database queries
+| +-- auth.ts # Auth config
+|
++-- data/
+| +-- knowledge/
+| | +-- faqs.ts # 30 FAQs
+| | +-- products.ts # 11 product sheets
+| | +-- guides.ts # 5 policies + 8 how-to guides
+| | +-- index.ts # Combines all 54 documents
+| +-- mock-bank-data.ts # SQLite seed data
+|
++-- scripts/
+| +-- seed-chroma.ts # Embeds knowledge base into ChromaDB
+|
++-- docker-compose.yml
+
+---
+
+## Updating the knowledge base
+
+Edit any file in `data/knowledge/`, then re-run:
+
+```bash
+npm run seed:chroma
 ```
 
----
-
-## Security features built in
-
-- All financial APIs require you to be signed in
-- Each user only sees their own applications (loans, appointments, credit cards)
-- Financial form fields are validated server-side (type, range, allowed values)
-- The chat filters out prompt injection attempts before they reach the AI
-- Conversation history is capped at 6 turns to limit exposure
+ChromaDB gets wiped and rebuilt from scratch. The agent picks up the new content immediately.
 
 ---
 
-## Want to customise it?
+## Security
 
-**Change the FAQ / product info:**
-Edit `data/mock-bank-data.ts` → update `FAQ_DATA`, `PRODUCT_DATA`, `POLICY_DATA` → re-run `npm run seed`
-
-**Add a new chat feature:**
-1. Add keywords to the router in `lib/agent/graph.ts`
-2. Add a new intent and format rule
-3. Set a `showXxxCTA` flag in `app/api/chat/route.ts`
-4. Build the inline component in `app/chat/page.tsx`
-
-**Reset the database:**
-Delete `.novabank-db.sqlite` and restart the dev server — it re-seeds automatically.
+- All financial API routes require an active session
+- User isolation enforced server-side - users only see their own data
+- Input guardrail blocks prompt injection before reaching the LLM
+- Output guardrail flags financial responses generated without tool use
+- Conversation history capped at 6 turns
+- Account numbers masked to last 4 digits in all responses
 
 ---
 
 ## Before going to production
 
-This is a demo. Before using it with real customers, you'd need to:
-
-- [ ] Replace the password check with proper bcrypt hashing
-- [ ] Swap SQLite for PostgreSQL (e.g. Supabase or Neon)
-- [ ] Add a real KYC provider for identity verification
-- [ ] Add rate limiting to all API endpoints
-- [ ] Use a strong, randomly generated `NEXTAUTH_SECRET`
-- [ ] Move ChromaDB to a hosted service
-- [ ] Add audit logging (who accessed what and when)
+- [ ] Replace plain text password comparison with bcrypt
+- [ ] Swap SQLite for PostgreSQL (Supabase or Neon)
+- [ ] Move ChromaDB to a hosted service (Chroma Cloud)
+- [ ] Add rate limiting on all API routes
+- [ ] Add proper audit logging
+- [ ] Set up automated re-seeding when knowledge docs change
+- [ ] KYC provider for real identity verification
 
 ---
 
