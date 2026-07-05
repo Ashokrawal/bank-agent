@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 import { getLoanApplications, getAppointments } from "@/lib/db/sqlite";
 import Link from "next/link";
 
-const ADMIN_EMAILS = ["admin@novabank.com", "demo@novabank.com"];
+import { isAdminEmail } from "@/lib/admin";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -23,7 +23,7 @@ export default async function AdminPage() {
   if (!session?.user) redirect("/auth/signin");
 
   // logged in but not admin - send home
-  if (!ADMIN_EMAILS.includes(session.user.email ?? "")) redirect("/chat");
+  if (!isAdminEmail(session.user.email)) redirect("/chat");
 
   // fetch all applications - no userId filter so we get everyone's
   const loans = await getLoanApplications();
