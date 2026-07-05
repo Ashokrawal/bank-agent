@@ -68,13 +68,16 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isAdmin = session?.user?.email === "admin@novabank.com";
 
-  const navItems = [
-    { href: "/chat", label: "AI Assistant" },
-    { href: "/account", label: "My Account", auth: true },
-    { href: "/loan", label: "Loan Portal", auth: true },
-    { href: "/onboard", label: "Open Account" },
-  ];
+  const navItems = isAdmin
+    ? [{ href: "/admin", label: "Staff Portal" }]
+    : [
+        { href: "/chat", label: "AI Assistant" },
+        { href: "/account", label: "My Account", auth: true },
+        { href: "/loan", label: "Loan Portal", auth: true },
+        { href: "/onboard", label: "Open Account" },
+      ];
 
   return (
     <header
