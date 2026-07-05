@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "seed": "tsx scripts/seed.ts",
+    "seed:chroma": "tsx scripts/seed-chroma.ts",
     "seed:db": "tsx -e \"import('./lib/db/sqlite').then(m => m.dbQuery('SELECT COUNT(*) as c FROM users')).then(r => console.log('DB ok:', JSON.stringify(r)))\"",
     "chroma": "docker run -d --name chroma -p 8000:8000 chromadb/chroma:latest"
   },
@@ -16,6 +17,7 @@
     "@langchain/core": "^1.1.32",
     "@langchain/google-genai": "^2.1.25",
     "@langchain/langgraph": "^1.2.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/sql.js": "^1.4.9",
     "@types/uuid": "^10.0.0",
     "chromadb": "^3.3.3",
