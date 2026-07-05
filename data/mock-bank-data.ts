@@ -265,6 +265,18 @@ export const POLICY_DATA = [
 
 export const MOCK_USERS = [
   {
+    id: "user-admin",
+    email: "admin@novabank.com",
+    password_hash: "admin-hash",
+    name: "NovaBanк Admin",
+    phone: "+44 7700 900000",
+    address: "1 Bank Street, London, EC2V 8RF",
+    ni_number: "AA 00 00 00 A",
+    date_of_birth: "1990-01-01",
+    kyc_status: "verified",
+    created_at: "2024-01-01T00:00:00.000Z",
+  },
+  {
     id: "user-001",
     email: "james.carter@example.com",
     password_hash: "$2a$10$mockhashjamescarterasdf", // password: demo123

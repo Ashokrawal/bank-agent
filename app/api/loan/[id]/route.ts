@@ -1,10 +1,12 @@
 /**
- * PATCH /api/loan/[id]  — staff approves / rejects / requests more info
+ * PATCH /api/loan/[id] - staff approves / rejects / requests more info
+ * Admin only - checked via centralised isAdminEmail helper
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { updateLoanStatus } from "@/lib/db/sqlite";
+import { isAdminEmail } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
@@ -15,6 +17,10 @@ export async function PATCH(
   const session = await getServerSession(authOptions);
   if (!session?.user)
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+
+  // only admin emails can approve or reject loans
+  if (!isAdminEmail(session.user.email))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const { status, notes } = (await req.json()) as {

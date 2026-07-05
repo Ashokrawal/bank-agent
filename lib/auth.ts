@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "NovaBanк",
       credentials: {
-        email:    { label: "Email",    type: "email"    },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
@@ -24,11 +24,14 @@ export const authOptions: NextAuthOptions = {
           if (!user) return null;
           // Demo: accept "demo123" for all mock users
           // Production: bcrypt.compare(credentials.password, user.password_hash)
-          if (credentials.password !== "demo123") return null;
+          // admin has a separate password
+          const isAdmin = normalizedEmail === "admin@novabank.com";
+          const correctPassword = isAdmin ? "NovaBanк@Admin2025" : "demo123";
+          if (credentials.password !== correctPassword) return null;
           return {
-            id:    user.id    as string,
+            id: user.id as string,
             email: user.email as string,
-            name:  user.name  as string,
+            name: user.name as string,
           };
         } catch (err) {
           console.error("Auth error:", err);
@@ -40,7 +43,9 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) { token.id = user.id; }
+      if (user) {
+        token.id = user.id;
+      }
       return token;
     },
     async session({ session, token }) {
