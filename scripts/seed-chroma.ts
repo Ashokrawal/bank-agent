@@ -17,7 +17,7 @@ import { ALL_DOCUMENTS, DOCUMENT_COUNT } from "../data/knowledge/index";
 dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 const COLLECTION_NAME = "novabank_knowledge_v3";
-const EMBED_MODEL = "text-embedding-004";
+const EMBED_MODEL = "gemini-embedding-001";
 const DELAY_MS = 250; // avoid Gemini rate limits
 
 async function embed(

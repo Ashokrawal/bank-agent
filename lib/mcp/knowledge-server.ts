@@ -30,7 +30,7 @@ dotenv.config();
 // Must match the collection name in seed-chroma.ts
 // If these dont match, search returns nothing - common bug
 const COLLECTION_NAME = "novabank_knowledge_v3";
-const EMBED_MODEL = "text-embedding-004";
+const EMBED_MODEL = "gemini-embedding-001";
 
 // How many chunks to return per search
 // k=4 is the sweet spot - enough context without flooding the prompt
