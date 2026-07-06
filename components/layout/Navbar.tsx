@@ -74,7 +74,6 @@ export function Navbar() {
     ? [{ href: "/admin", label: "Staff Portal" }]
     : [
         { href: "/chat", label: "AI Assistant" },
-        { href: "/account", label: "My Account", auth: true },
         { href: "/loan", label: "Loan Portal", auth: true },
         { href: "/onboard", label: "Open Account" },
       ];
@@ -120,7 +119,7 @@ export function Navbar() {
               letterSpacing: "-0.02em",
             }}
           >
-            NovaBanк
+            NovaBank
           </span>
         </Link>
 

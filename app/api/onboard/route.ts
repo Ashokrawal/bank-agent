@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       success: true,
       applicationId: id,
       status: "approved",
-      message: "Your application has been approved. Welcome to NovaBanк!",
+      message: "Your application has been approved. Welcome to NovaBank!",
     });
   } catch (err) {
     console.error("Onboard API error:", err);

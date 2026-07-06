@@ -10,8 +10,11 @@ import {
   getLoanApplications,
   dbRun,
 } from "@/lib/db/sqlite";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HumanMessage } from "@langchain/core/messages";
+import {
+  computeAffordability,
+  validateLoanApplication,
+  generateUnderwritingSummary,
+} from "@/lib/loans/underwriting";
 import { isAdminEmail } from "@/lib/admin";
 import { v4 as uuid } from "uuid";
 
@@ -44,80 +47,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Must be signed in" }, { status: 401 });
 
   const body = await req.json();
-  const {
-    salary,
-    expenses,
-    deposit,
-    propertyValue,
+  const { salary, expenses, deposit, propertyValue, employment, existingDebts } = body;
+
+  const financials = {
+    salary: Number(salary),
+    expenses: Number(expenses),
+    deposit: Number(deposit),
+    propertyValue: Number(propertyValue),
+    existingDebts: Number(existingDebts) || 0,
+  };
+
+  const validation = validateLoanApplication({ ...financials, employment });
+  if (!validation.valid)
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+
+  const { loanAmount, dti, ltv } = computeAffordability(financials);
+
+  const aiSummary = await generateUnderwritingSummary({
+    userName: session.user.name ?? "",
     employment,
-    existingDebts,
+    ...financials,
     loanAmount,
     dti,
     ltv,
-  } = body;
-
-  if (!salary || !propertyValue || !deposit || !employment)
-    return NextResponse.json(
-      { error: "Missing required fields" },
-      { status: 400 },
-    );
-
-  const financialFields: Record<string, [number, number]> = {
-    salary: [100, 1_000_000],
-    expenses: [0, 500_000],
-    deposit: [1, 10_000_000],
-    propertyValue: [1, 50_000_000],
-    existingDebts: [0, 500_000],
-    loanAmount: [1, 20_000_000],
-    dti: [0, 200],
-    ltv: [0, 200],
-  };
-
-  for (const [field, [min, max]] of Object.entries(financialFields)) {
-    const val = Number(body[field]);
-    if (!Number.isFinite(val) || val < min || val > max)
-      return NextResponse.json(
-        { error: `Invalid value for ${field}` },
-        { status: 400 },
-      );
-  }
-
-  const allowedEmployment = [
-    "full-time",
-    "part-time",
-    "self-employed",
-    "contractor",
-    "retired",
-  ];
-  if (!allowedEmployment.includes(String(employment).toLowerCase()))
-    return NextResponse.json(
-      { error: "Invalid employment type" },
-      { status: 400 },
-    );
-
-  // generate AI underwriter summary
-  let aiSummary = "";
-  try {
-    const llm = new ChatGoogleGenerativeAI({
-      model: "gemini-2.5-flash",
-      apiKey: process.env.GEMINI_API_KEY,
-      temperature: 0.1,
-      maxOutputTokens: 200,
-    });
-    const prompt =
-      `You are a mortgage underwriter. Write a 3-sentence assessment for a loan officer.\n` +
-      `Applicant: ${session.user.name} | Employment: ${employment}\n` +
-      `Salary: £${salary}/mo | Expenses: £${expenses}/mo | Existing debts: £${existingDebts}/mo\n` +
-      `Property: £${propertyValue} | Deposit: £${deposit} | Loan: £${loanAmount}\n` +
-      `DTI: ${dti}% | LTV: ${ltv}%\n\n` +
-      `Be concise. End with "Risk: LOW", "Risk: MEDIUM", or "Risk: HIGH".`;
-
-    const res = await llm.invoke([new HumanMessage(prompt)]);
-    aiSummary = res.content as string;
-  } catch (e) {
-    console.error("AI summary error:", e);
-    aiSummary = "Summary unavailable - please review manually.";
-  }
+  });
 
   const id = uuid();
   const userId = (session.user as { id?: string }).id ?? "";
@@ -127,12 +80,8 @@ export async function POST(req: NextRequest) {
     userId,
     userName: session.user.name ?? "",
     email: session.user.email ?? "",
-    salary,
-    expenses,
-    deposit,
-    propertyValue,
+    ...financials,
     employmentType: employment,
-    existingDebts,
     loanAmount,
     dti,
     ltv,

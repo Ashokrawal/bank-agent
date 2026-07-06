@@ -13,7 +13,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { runBankAgent } from "@/lib/agent/mcpGraph";
+import {
+  runBankAgent,
+  type LoanDraft,
+  type AppointmentDraft,
+} from "@/lib/agent/mcpGraph";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // increased - MCP server spawn takes a moment
@@ -42,6 +46,8 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as {
       message?: string;
       history?: Array<{ role: "user" | "assistant"; content: string }>;
+      loanDraft?: LoanDraft;
+      appointmentDraft?: AppointmentDraft;
     };
 
     // basic validation
@@ -62,12 +68,14 @@ export async function POST(req: NextRequest) {
     // userId gets injected into the agent so tools can query the right data
     let userId = "guest";
     let userName = "Guest";
+    let userEmail = "";
 
     try {
       const session = await getServerSession(authOptions);
       if (session?.user) {
         userId = (session.user as { id?: string }).id ?? "guest";
         userName = session.user.name ?? "Guest";
+        userEmail = session.user.email ?? "";
       }
     } catch {
       // not logged in - tools will return no account data
@@ -87,7 +95,14 @@ export async function POST(req: NextRequest) {
     const result = await runBankAgent({
       message: body.message.trim(),
       userId,
+      userEmail,
+      userName,
       conversationHistory: history,
+      // round-tripped from the client - this is what makes collected loan
+      // and appointment facts survive between separate chat messages,
+      // since each POST here is otherwise a fresh agent run
+      loanDraft: body.loanDraft ?? {},
+      appointmentDraft: body.appointmentDraft ?? {},
     });
 
     // ── Output guardrail ────────────────────────────────────────────────────
@@ -111,15 +126,25 @@ export async function POST(req: NextRequest) {
       userName,
     };
 
-    if (result.ctaAction === "SHOW_LOAN_FORM") metadata.showLoanCTA = true;
-    if (result.ctaAction === "SHOW_APPOINTMENT_FORM")
-      metadata.showAppointmentCTA = true;
+    if (result.ctaAction === "SHOW_LOAN_CONFIRMATION") {
+      metadata.showLoanConfirmation = true;
+      metadata.loanDetails = result.ctaData;
+    }
+    if (result.ctaAction === "SHOW_APPOINTMENT_CONFIRMATION") {
+      metadata.showAppointmentConfirmation = true;
+      metadata.appointmentDetails = result.ctaData;
+    }
     if (result.ctaAction === "SHOW_CREDIT_CARD_FORM")
       metadata.showCreditCardCTA = true;
 
     return NextResponse.json({
       response: result.response,
       metadata,
+      // send back so the client can include these in its NEXT request -
+      // this is what actually makes loan/appointment facts persist across
+      // separate chat messages instead of resetting each time
+      loanDraft: result.loanDraft,
+      appointmentDraft: result.appointmentDraft,
     });
   } catch (e) {
     console.error("Chat API error:", e);

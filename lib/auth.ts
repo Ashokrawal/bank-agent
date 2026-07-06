@@ -11,7 +11,7 @@ import { getUserByEmail } from "@/lib/db/sqlite";
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: "NovaBanк",
+      name: "NovaBank",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -26,7 +26,7 @@ export const authOptions: NextAuthOptions = {
           // Production: bcrypt.compare(credentials.password, user.password_hash)
           // admin has a separate password
           const isAdmin = normalizedEmail === "admin@novabank.com";
-          const correctPassword = isAdmin ? "NovaBanк@Admin2025" : "demo123";
+          const correctPassword = isAdmin ? "NovaBank@Admin2025" : "demo123";
           if (credentials.password !== correctPassword) return null;
           return {
             id: user.id as string,

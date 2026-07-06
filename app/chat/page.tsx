@@ -21,7 +21,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
 interface HistoryTurn {
-  role: "user" | "bot";
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -36,17 +36,6 @@ interface Message {
 
 // ── Contextual chips per intent ────────────────────────────────────────────────
 const CHIPS_BY_INTENT: Record<string, string[]> = {
-  balance: [
-    "Show my transactions",
-    "Analyse my spending",
-    "Statement for last month",
-  ],
-  transactions: [
-    "Analyse my spending",
-    "Check my balance",
-    "Transactions last month",
-  ],
-  spending: ["Show my transactions", "Check my balance", "Spending last month"],
   onboard: [
     "What documents do I need?",
     "How long does verification take?",
@@ -58,14 +47,14 @@ const CHIPS_BY_INTENT: Record<string, string[]> = {
     "Is my money protected?",
   ],
   greeting: [
-    "Check my balance",
-    "Show my transactions",
+    "Book an appointment",
+    "Apply for a loan",
     "How do I open an account?",
   ],
-  loan: ["Book an advisor appointment", "Show my balance", "Apply for a credit card"],
-  appointment: ["Show my balance", "Investment options", "Apply for a credit card"],
-  investment: ["Book an investment advisor", "Open a Cash ISA", "Show my balance"],
-  credit_card: ["Book an appointment", "Apply for a loan", "Show my balance"],
+  loan: ["Book an advisor appointment", "Apply for a credit card", "What are your loan rates?"],
+  appointment: ["Investment options", "Apply for a credit card", "Apply for a loan"],
+  investment: ["Book an investment advisor", "Open a Cash ISA", "Apply for a loan"],
+  credit_card: ["Book an appointment", "Apply for a loan", "What cards do you offer?"],
 };
 
 // ── Fallback chips shown before first message ──────────────────────────────────
@@ -76,13 +65,6 @@ const INITIAL_SUGGESTED = [
   "What savings rates do you offer?",
   "How do I report a lost card?",
   "Is my money protected?",
-];
-
-const INITIAL_ACCOUNT_SUGGESTED = [
-  "Show me my balance",
-  "Analyse my spending",
-  "Statement for last month",
-  "Show my recent transactions",
 ];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -137,93 +119,6 @@ function TypingIndicator() {
         <div className="typing-dot" />
         <div className="typing-dot" />
       </div>
-    </div>
-  );
-}
-
-function TransactionTable({
-  transactions,
-}: {
-  transactions: Record<string, unknown>[];
-}) {
-  return (
-    <div
-      style={{
-        marginTop: 12,
-        overflow: "hidden",
-        borderRadius: "var(--radius-md)",
-        border: "1px solid var(--surface-border)",
-      }}
-    >
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "0.8125rem",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "var(--surface-subtle)" }}>
-            {["Date", "Description", "Amount"].map((h) => (
-              <th
-                key={h}
-                style={{
-                  padding: "8px 12px",
-                  textAlign: "left",
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.slice(0, 8).map((t, i) => (
-            <tr
-              key={i}
-              style={{ borderTop: "1px solid var(--surface-divider)" }}
-            >
-              <td
-                style={{
-                  padding: "8px 12px",
-                  color: "var(--text-muted)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {String(t.date)}
-              </td>
-              <td
-                style={{
-                  padding: "8px 12px",
-                  maxWidth: 160,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {String(t.description)}
-              </td>
-              <td
-                style={{
-                  padding: "8px 12px",
-                  whiteSpace: "nowrap",
-                  fontWeight: 500,
-                  color:
-                    Number(t.amount) < 0
-                      ? "var(--error-700)"
-                      : "var(--success-700)",
-                }}
-              >
-                {Number(t.amount) < 0 ? "-" : "+"}£
-                {Math.abs(Number(t.amount)).toFixed(2)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -309,93 +204,48 @@ function SuccessCard({ title, body }: { title: string; body: string }) {
   );
 }
 
-// ── Appointment booking form ───────────────────────────────────────────────────
-function InlineAppointmentForm() {
-  const [form, setForm] = useState({
-    advisorType: "general",
-    preferredDate: "",
-    preferredTime: "09:00",
-    reason: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+// ── Appointment confirmation card ───────────────────────────────────────────────
+// Read-only - the AI collects the date/time conversationally and calls
+// book_appointment itself, so by the time this renders the booking already
+// exists. This just summarises what was booked.
+const ADVISOR_LABELS: Record<string, string> = {
+  general: "General banking",
+  mortgage: "Mortgage advisor",
+  investment: "Investment advisor",
+  business: "Business banking",
+};
 
-  function setField(key: string, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+function AppointmentConfirmationCard({
+  details,
+}: {
+  details?: Record<string, unknown>;
+}) {
+  if (!details) return null;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.preferredDate) {
-      setError("Please select a preferred date.");
-      return;
-    }
-    if (selectedDayInfo?.isWeekend) {
-      setError("Please select a weekday — we are not open on weekends.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/appointment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Booking failed");
-      setSubmitted(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Booking failed");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const advisorType = String(details.advisorType ?? "general");
+  const preferredDate = String(details.preferredDate ?? "");
+  const preferredTime = String(details.preferredTime ?? "");
+  const reason = details.reason ? String(details.reason) : "";
+  const emailSent = !!details.emailSent;
 
-  const fieldInput: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 10px",
-    border: "1px solid var(--surface-border)",
-    borderRadius: 6,
-    fontSize: "0.8125rem",
-    background: "var(--surface-subtle)",
-    color: "var(--text-primary)",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    outline: "none",
-  };
-
-  const [minDateStr, setMinDateStr] = useState("");
-  const [maxDateStr, setMaxDateStr] = useState("");
-  useEffect(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setMinDateStr(tomorrow.toISOString().split("T")[0]);
-    const threeMonths = new Date();
-    threeMonths.setMonth(threeMonths.getMonth() + 3);
-    setMaxDateStr(threeMonths.toISOString().split("T")[0]);
-  }, []);
-
-  const selectedDayInfo = (() => {
-    if (!form.preferredDate) return null;
-    const d = new Date(form.preferredDate + "T12:00:00");
-    const day = d.getDay(); // 0=Sun, 6=Sat
-    const label = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-    return { label, isWeekend: day === 0 || day === 6 };
+  const dateLabel = (() => {
+    const d = new Date(`${preferredDate}T${preferredTime || "12:00"}:00`);
+    if (Number.isNaN(d.getTime())) return preferredDate;
+    return d.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
   })();
 
-  if (submitted)
-    return (
-      <SuccessCard
-        title="Appointment booked"
-        body="A NovaBanк advisor will confirm your slot via email within 1 business day."
-      />
-    );
+  const timeLabel = (() => {
+    const d = new Date(`2000-01-01T${preferredTime || "00:00"}:00`);
+    if (Number.isNaN(d.getTime())) return preferredTime;
+    return d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
+  })();
 
   return (
-    <form
-      onSubmit={handleSubmit}
+    <div
       style={{
         marginTop: 10,
         padding: "16px",
@@ -404,131 +254,45 @@ function InlineAppointmentForm() {
         borderRadius: 10,
         display: "flex",
         flexDirection: "column",
-        gap: 12,
-        maxWidth: 480,
+        gap: 8,
+        maxWidth: 420,
       }}
     >
       <div
         style={{
-          fontSize: "0.75rem",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           fontWeight: 500,
-          color: "var(--text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
+          fontSize: "0.875rem",
+          color: "var(--text-primary)",
         }}
       >
-        Book an Appointment
+        <span>✅</span> Appointment Confirmed
       </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-          Advisor type
-        </label>
-        <select
-          value={form.advisorType}
-          onChange={(e) => setField("advisorType", e.target.value)}
-          style={fieldInput}
-        >
-          <option value="general">General banking</option>
-          <option value="mortgage">Mortgage advisor</option>
-          <option value="investment">Investment advisor</option>
-          <option value="business">Business banking</option>
-        </select>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        📅 {dateLabel} • {timeLabel}
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Preferred date *
-          </label>
-          <input
-            type="date"
-            min={minDateStr}
-            max={maxDateStr}
-            value={form.preferredDate}
-            onChange={(e) => setField("preferredDate", e.target.value)}
-            style={fieldInput}
-          />
-          {selectedDayInfo && (
-            <div style={{
-              fontSize: "0.72rem",
-              marginTop: 3,
-              color: selectedDayInfo.isWeekend ? "var(--error-700, #b91c1c)" : "var(--text-muted)",
-            }}>
-              {selectedDayInfo.isWeekend
-                ? `${selectedDayInfo.label} — weekends unavailable`
-                : selectedDayInfo.label}
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Preferred time
-          </label>
-          <select
-            value={form.preferredTime}
-            onChange={(e) => setField("preferredTime", e.target.value)}
-            style={fieldInput}
-          >
-            {[
-              { value: "09:00", label: "9:00 AM" },
-              { value: "10:00", label: "10:00 AM" },
-              { value: "11:00", label: "11:00 AM" },
-              { value: "12:00", label: "12:00 PM (Noon)" },
-              { value: "14:00", label: "2:00 PM" },
-              { value: "15:00", label: "3:00 PM" },
-              { value: "16:00", label: "4:00 PM" },
-            ].map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        💼 {ADVISOR_LABELS[advisorType] ?? advisorType}
       </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-          Reason for appointment (optional)
-        </label>
-        <input
-          type="text"
-          placeholder="e.g. Review my mortgage options"
-          value={form.reason}
-          onChange={(e) => setField("reason", e.target.value)}
-          style={fieldInput}
-        />
-      </div>
-
-      {error && (
-        <div style={{ fontSize: "0.8rem", color: "var(--error-700, #b91c1c)" }}>
-          {error}
+      {reason && (
+        <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+          📝 {reason}
         </div>
       )}
-
-      <button
-        type="submit"
-        disabled={loading}
+      <div
         style={{
-          padding: "9px 16px",
-          background: loading
-            ? "var(--surface-border)"
-            : "var(--brand-500, #4f6ef7)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 7,
-          fontSize: "0.875rem",
-          fontWeight: 500,
-          cursor: loading ? "not-allowed" : "pointer",
-          fontFamily: "inherit",
-          transition: "background 0.15s",
+          fontSize: "0.75rem",
+          color: emailSent ? "var(--text-muted)" : "var(--error-700, #b91c1c)",
+          marginTop: 4,
         }}
       >
-        {loading ? "Booking…" : "Book appointment →"}
-      </button>
-    </form>
+        {emailSent
+          ? "A confirmation email is on its way."
+          : "We couldn't send a confirmation email, but your appointment is booked."}
+      </div>
+    </div>
   );
 }
 
@@ -923,138 +687,30 @@ function InlineCreditCardForm() {
   );
 }
 
-// ── Inline loan application form ──────────────────────────────────────────────
-function InlineLoanForm() {
-  const [form, setForm] = useState({
-    salary: "",
-    expenses: "",
-    deposit: "",
-    propertyValue: "",
-    employment: "full-time",
-    existingDebts: "0",
-    loanPurpose: "mortgage",
-  });
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+// ── Loan application confirmation card ──────────────────────────────────────────
+// Read-only - the AI collects the details conversationally and calls
+// apply_for_loan itself. This just summarises what was submitted.
+const LOAN_PURPOSE_LABELS: Record<string, string> = {
+  mortgage: "Mortgage",
+  personal: "Personal loan",
+  car: "Car loan",
+  home: "Home loan",
+  remortgage: "Remortgage",
+  "buy-to-let": "Buy to let",
+};
 
-  function setField(key: string, value: string) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+function LoanConfirmationCard({ details }: { details?: Record<string, unknown> }) {
+  if (!details) return null;
 
-  const n = (k: string) =>
-    parseFloat(form[k as keyof typeof form] as string) || 0;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const salary = n("salary");
-    const expenses = n("expenses");
-    const deposit = n("deposit");
-    const propertyValue = n("propertyValue");
-    const existingDebts = n("existingDebts");
-
-    if (!salary || !propertyValue || !deposit) {
-      setError("Please fill in all required fields.");
-      return;
-    }
-    if (deposit >= propertyValue) {
-      setError("Deposit cannot exceed property value.");
-      return;
-    }
-
-    const loanAmount = propertyValue - deposit;
-    const dti =
-      salary > 0
-        ? Math.round(((expenses + existingDebts) / salary) * 100)
-        : 0;
-    const ltv = Math.round((loanAmount / propertyValue) * 100);
-
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/loan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          salary,
-          expenses,
-          deposit,
-          propertyValue,
-          employment: form.employment,
-          existingDebts,
-          loanAmount,
-          dti,
-          ltv,
-          loanPurpose: form.loanPurpose,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Submission failed");
-      setSubmitted(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Submission failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const fieldInput: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 10px",
-    border: "1px solid var(--surface-border)",
-    borderRadius: 6,
-    fontSize: "0.8125rem",
-    background: "var(--surface-subtle)",
-    color: "var(--text-primary)",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    outline: "none",
-  };
-
-  if (submitted) {
-    return (
-      <div
-        style={{
-          marginTop: 10,
-          padding: "14px 16px",
-          background: "var(--surface-raised)",
-          border: "1px solid var(--surface-border)",
-          borderRadius: 10,
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>✅</span>
-        <div>
-          <div
-            style={{
-              fontWeight: 500,
-              fontSize: "0.875rem",
-              color: "var(--text-primary)",
-              marginBottom: 4,
-            }}
-          >
-            Application submitted for human review
-          </div>
-          <div
-            style={{
-              fontSize: "0.8rem",
-              color: "var(--text-secondary)",
-              lineHeight: 1.5,
-            }}
-          >
-            A NovaBanк advisor will review your details and contact you within
-            2–3 business days.
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const loanPurpose = String(details.loanPurpose ?? "mortgage");
+  const propertyValue = Number(details.propertyValue ?? 0);
+  const deposit = Number(details.deposit ?? 0);
+  const loanAmount = Number(details.loanAmount ?? propertyValue - deposit);
+  const employment = String(details.employment ?? "");
+  const emailSent = !!details.emailSent;
 
   return (
-    <form
-      onSubmit={handleSubmit}
+    <div
       style={{
         marginTop: 10,
         padding: "16px",
@@ -1063,251 +719,46 @@ function InlineLoanForm() {
         borderRadius: 10,
         display: "flex",
         flexDirection: "column",
-        gap: 12,
-        maxWidth: 480,
+        gap: 8,
+        maxWidth: 420,
       }}
     >
       <div
         style={{
-          fontSize: "0.75rem",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           fontWeight: 500,
-          color: "var(--text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-        }}
-      >
-        Loan Application
-      </div>
-
-      {/* Loan purpose */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label
-          style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-        >
-          Loan purpose
-        </label>
-        <select
-          value={form.loanPurpose}
-          onChange={(e) => setField("loanPurpose", e.target.value)}
-          style={fieldInput}
-        >
-          <option value="mortgage">Mortgage</option>
-          <option value="personal">Personal loan</option>
-          <option value="car">Car loan</option>
-          <option value="home">Home loan</option>
-          <option value="remortgage">Remortgage</option>
-          <option value="buy-to-let">Buy to let</option>
-        </select>
-      </div>
-
-      {/* Property value + Deposit */}
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Property value (£) *
-          </label>
-          <input
-            type="number"
-            min="0"
-            placeholder="e.g. 250000"
-            value={form.propertyValue}
-            onChange={(e) => setField("propertyValue", e.target.value)}
-            style={fieldInput}
-          />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Deposit (£) *
-          </label>
-          <input
-            type="number"
-            min="0"
-            placeholder="e.g. 30000"
-            value={form.deposit}
-            onChange={(e) => setField("deposit", e.target.value)}
-            style={fieldInput}
-          />
-        </div>
-      </div>
-
-      {/* Employment */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label
-          style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-        >
-          Employment type
-        </label>
-        <select
-          value={form.employment}
-          onChange={(e) => setField("employment", e.target.value)}
-          style={fieldInput}
-        >
-          <option value="full-time">Full-time employed</option>
-          <option value="part-time">Part-time employed</option>
-          <option value="self-employed">Self-employed</option>
-          <option value="contractor">Contractor</option>
-          <option value="retired">Retired</option>
-        </select>
-      </div>
-
-      {/* Salary + Expenses */}
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Monthly salary (£) *
-          </label>
-          <input
-            type="number"
-            min="0"
-            placeholder="e.g. 3500"
-            value={form.salary}
-            onChange={(e) => setField("salary", e.target.value)}
-            style={fieldInput}
-          />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label
-            style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-          >
-            Monthly expenses (£) *
-          </label>
-          <input
-            type="number"
-            min="0"
-            placeholder="e.g. 1200"
-            value={form.expenses}
-            onChange={(e) => setField("expenses", e.target.value)}
-            style={fieldInput}
-          />
-        </div>
-      </div>
-
-      {/* Existing debts */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label
-          style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-        >
-          Existing loan / credit repayments (£/month)
-        </label>
-        <input
-          type="number"
-          min="0"
-          placeholder="0"
-          value={form.existingDebts}
-          onChange={(e) => setField("existingDebts", e.target.value)}
-          style={fieldInput}
-        />
-      </div>
-
-      {/* Live affordability metrics */}
-      {n("salary") > 0 && n("propertyValue") > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-            padding: "10px 12px",
-            background: "var(--surface-subtle)",
-            borderRadius: 8,
-            fontSize: "0.75rem",
-          }}
-        >
-          {[
-            {
-              label: "Loan amount",
-              value:
-                n("propertyValue") > n("deposit")
-                  ? `£${(n("propertyValue") - n("deposit")).toLocaleString()}`
-                  : "—",
-            },
-            {
-              label: "LTV",
-              value:
-                n("propertyValue") > 0
-                  ? `${Math.round(((n("propertyValue") - n("deposit")) / n("propertyValue")) * 100)}%`
-                  : "—",
-            },
-            {
-              label: "DTI ratio",
-              value:
-                n("salary") > 0
-                  ? `${Math.round(((n("expenses") + n("existingDebts")) / n("salary")) * 100)}%`
-                  : "—",
-            },
-            {
-              label: "Est. monthly payment",
-              value:
-                n("propertyValue") > n("deposit")
-                  ? `~£${Math.round(((n("propertyValue") - n("deposit")) * 0.045) / 12).toLocaleString()}`
-                  : "—",
-            },
-          ].map(({ label, value }) => (
-            <div key={label}>
-              <div style={{ color: "var(--text-muted)" }}>{label}</div>
-              <div
-                style={{
-                  fontWeight: 500,
-                  color: "var(--text-primary)",
-                  marginTop: 2,
-                }}
-              >
-                {value}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {error && (
-        <div
-          style={{ fontSize: "0.8rem", color: "var(--error-700, #b91c1c)" }}
-        >
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading}
-        style={{
-          padding: "9px 16px",
-          background: loading
-            ? "var(--surface-border)"
-            : "var(--brand-500, #4f6ef7)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 7,
           fontSize: "0.875rem",
-          fontWeight: 500,
-          cursor: loading ? "not-allowed" : "pointer",
-          fontFamily: "inherit",
-          transition: "background 0.15s",
+          color: "var(--text-primary)",
         }}
       >
-        {loading ? "Submitting…" : "Submit for review →"}
-      </button>
-
-      <p
+        <span>✅</span> Application Submitted for Review
+      </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        🏠 {LOAN_PURPOSE_LABELS[loanPurpose] ?? loanPurpose} • £
+        {propertyValue.toLocaleString()} property, £{deposit.toLocaleString()} deposit
+      </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        💷 Loan amount: £{loanAmount.toLocaleString()}
+      </div>
+      {employment && (
+        <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+          💼 {employment}
+        </div>
+      )}
+      <div
         style={{
-          fontSize: "0.7rem",
-          color: "var(--text-muted)",
-          margin: 0,
-          textAlign: "center",
+          fontSize: "0.75rem",
+          color: emailSent ? "var(--text-muted)" : "var(--error-700, #b91c1c)",
+          marginTop: 4,
         }}
       >
-        Your data is encrypted and only used for this application.
-      </p>
-    </form>
+        {emailSent
+          ? "A confirmation email is on its way. A NovaBank advisor will review your details and contact you within 2–3 business days."
+          : "We couldn't send a confirmation email, but your application is submitted. A NovaBank advisor will review it and contact you within 2–3 business days."}
+      </div>
+    </div>
   );
 }
 
@@ -1321,13 +772,21 @@ function ChatContent() {
       id: "welcome",
       role: "bot",
       content:
-        "Hi! I'm NovaBanк's AI assistant. I can help you with opening hours, account information, how to open an account, and much more.\n\nIf you're signed in, I can also show your balance, transactions, and spending breakdown.",
+        "Hi! I'm NovaBank's AI assistant. I can help you with opening hours, account information, how to open an account, booking an advisor appointment, applying for a loan, and much more.",
       timestamp: new Date(),
       intent: "greeting",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Round-tripped with every /api/chat call - the server has no memory of
+  // its own between HTTP requests, so these have to be sent back on every
+  // turn or collected loan/appointment facts silently reset each message.
+  const [loanDraft, setLoanDraft] = useState<Record<string, unknown>>({});
+  const [appointmentDraft, setAppointmentDraft] = useState<
+    Record<string, unknown>
+  >({});
 
   // Track which message's chips are currently visible — only the latest bot msg
   const [activeChipsMsgId, setActiveChipsMsgId] = useState<string>("welcome");
@@ -1345,12 +804,17 @@ function ChatContent() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Build history from current messages for next API call (last 6 turns)
+  // Build history from current messages for next API call (last 6 turns).
+  // The API expects "assistant" not "bot" - it filters on that role name,
+  // so sending "bot" silently dropped every past bot reply from context.
   function buildHistory(msgs: Message[]): HistoryTurn[] {
     return msgs
       .filter((m) => m.id !== "welcome")
       .slice(-6)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => ({
+        role: m.role === "bot" ? "assistant" : "user",
+        content: m.content,
+      }));
   }
 
   async function sendMessage(text: string) {
@@ -1380,9 +844,15 @@ function ChatContent() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, history, loanDraft, appointmentDraft }),
       });
       const data = await res.json();
+
+      // persist the server's updated draft so the next message carries it
+      // forward - without this, collected loan/appointment facts reset
+      // every single turn since the server keeps no state of its own
+      setLoanDraft(data.loanDraft ?? {});
+      setAppointmentDraft(data.appointmentDraft ?? {});
 
       const botId = (Date.now() + 1).toString();
       const botMsg: Message = {
@@ -1420,7 +890,7 @@ function ChatContent() {
     }
   }
 
-  const initialChips = session ? INITIAL_ACCOUNT_SUGGESTED : INITIAL_SUGGESTED;
+  const initialChips = INITIAL_SUGGESTED;
   const showInitialChips = messages.length <= 1;
 
   return (
@@ -1449,8 +919,7 @@ function ChatContent() {
         >
           <span>🔐</span>
           <span>
-            Signed in as <strong>{session.user?.name}</strong> — I can access
-            your account details.
+            Signed in as <strong>{session.user?.name}</strong>
           </span>
         </div>
       )}
@@ -1512,39 +981,33 @@ function ChatContent() {
                   <div
                     style={{ display: "flex", flexDirection: "column", gap: 6 }}
                   >
-                    {!(
-                      msg.intent === "transactions" &&
-                      Array.isArray(msg.metadata?.transactions) &&
-                      (msg.metadata!.transactions as unknown[]).length > 0
-                    ) && (
-                      <div
-                        className="bubble-bot"
-                        style={{ whiteSpace: "pre-wrap" }}
-                      >
-                        {msg.content}
-                      </div>
+                    <div
+                      className="bubble-bot"
+                      style={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {msg.content}
+                    </div>
+
+                    {/* Loan application confirmation card */}
+                    {!!msg.metadata?.showLoanConfirmation && (
+                      <LoanConfirmationCard
+                        details={
+                          msg.metadata!.loanDetails as
+                            | Record<string, unknown>
+                            | undefined
+                        }
+                      />
                     )}
 
-                    {/* Transaction table */}
-                    {Array.isArray(msg.metadata?.transactions) &&
-                      (msg.metadata!.transactions as unknown[]).length > 0 &&
-                      msg.intent === "transactions" && (
-                        <TransactionTable
-                          transactions={
-                            msg.metadata!.transactions as Record<
-                              string,
-                              unknown
-                            >[]
-                          }
-                        />
-                      )}
-
-                    {/* Inline loan application form */}
-                    {!!msg.metadata?.showLoanCTA && <InlineLoanForm />}
-
-                    {/* Inline appointment booking */}
-                    {!!msg.metadata?.showAppointmentCTA && (
-                      <InlineAppointmentForm />
+                    {/* Appointment confirmation card */}
+                    {!!msg.metadata?.showAppointmentConfirmation && (
+                      <AppointmentConfirmationCard
+                        details={
+                          msg.metadata!.appointmentDetails as
+                            | Record<string, unknown>
+                            | undefined
+                        }
+                      />
                     )}
 
                     {/* Inline investment options */}
@@ -1637,7 +1100,7 @@ function ChatContent() {
                 Math.min(e.target.scrollHeight, 120) + "px";
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask me anything about NovaBanк..."
+            placeholder="Ask me anything about NovaBank..."
             rows={1}
             disabled={loading}
             style={{
@@ -1679,7 +1142,7 @@ function ChatContent() {
             textAlign: "center",
           }}
         >
-          NovaBanк AI may make mistakes. For urgent help call 0800 123 4567.
+          NovaBank AI may make mistakes. For urgent help call 0800 123 4567.
         </p>
       </div>
     </div>

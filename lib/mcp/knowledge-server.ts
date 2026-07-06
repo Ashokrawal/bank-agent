@@ -81,10 +81,10 @@ async function main() {
 
     // Description: Gemini reads this to decide when to call this tool
     // Be specific - vague descriptions lead to wrong tool selection
-    "Search NovaBanк's knowledge base for information about products, " +
+    "Search NovaBank's knowledge base for information about products, " +
       "policies, fees, mortgage rates, savings rates, account types, " +
       "how-to guides, and general banking questions. " +
-      "Use this for any question that requires knowledge of NovaBanк " +
+      "Use this for any question that requires knowledge of NovaBank " +
       "products or services rather than the user's personal account data.",
 
     // Schema: defines what arguments this tool accepts
@@ -198,7 +198,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error("NovaBanк Knowledge Base MCP Server running");
+  console.error("NovaBank Knowledge Base MCP Server running");
 }
 
 main().catch((err) => {

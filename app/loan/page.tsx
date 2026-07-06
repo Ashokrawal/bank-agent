@@ -21,7 +21,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
 interface HistoryTurn {
-  role: "user" | "bot";
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -36,17 +36,6 @@ interface Message {
 
 // ── Contextual chips per intent ────────────────────────────────────────────────
 const CHIPS_BY_INTENT: Record<string, string[]> = {
-  balance: [
-    "Show my transactions",
-    "Analyse my spending",
-    "Statement for last month",
-  ],
-  transactions: [
-    "Analyse my spending",
-    "Check my balance",
-    "Transactions last month",
-  ],
-  spending: ["Show my transactions", "Check my balance", "Spending last month"],
   onboard: [
     "What documents do I need?",
     "How long does verification take?",
@@ -58,8 +47,8 @@ const CHIPS_BY_INTENT: Record<string, string[]> = {
     "Is my money protected?",
   ],
   greeting: [
-    "Check my balance",
-    "Show my transactions",
+    "Book an appointment",
+    "Apply for a loan",
     "How do I open an account?",
   ],
 };
@@ -72,13 +61,6 @@ const INITIAL_SUGGESTED = [
   "What savings rates do you offer?",
   "How do I report a lost card?",
   "Is my money protected?",
-];
-
-const INITIAL_ACCOUNT_SUGGESTED = [
-  "Show me my balance",
-  "Analyse my spending",
-  "Statement for last month",
-  "Show my recent transactions",
 ];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -137,93 +119,6 @@ function TypingIndicator() {
   );
 }
 
-function TransactionTable({
-  transactions,
-}: {
-  transactions: Record<string, unknown>[];
-}) {
-  return (
-    <div
-      style={{
-        marginTop: 12,
-        overflow: "hidden",
-        borderRadius: "var(--radius-md)",
-        border: "1px solid var(--surface-border)",
-      }}
-    >
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "0.8125rem",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "var(--surface-subtle)" }}>
-            {["Date", "Description", "Amount"].map((h) => (
-              <th
-                key={h}
-                style={{
-                  padding: "8px 12px",
-                  textAlign: "left",
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {transactions.slice(0, 8).map((t, i) => (
-            <tr
-              key={i}
-              style={{ borderTop: "1px solid var(--surface-divider)" }}
-            >
-              <td
-                style={{
-                  padding: "8px 12px",
-                  color: "var(--text-muted)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {String(t.date)}
-              </td>
-              <td
-                style={{
-                  padding: "8px 12px",
-                  maxWidth: 160,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {String(t.description)}
-              </td>
-              <td
-                style={{
-                  padding: "8px 12px",
-                  whiteSpace: "nowrap",
-                  fontWeight: 500,
-                  color:
-                    Number(t.amount) < 0
-                      ? "var(--error-700)"
-                      : "var(--success-700)",
-                }}
-              >
-                {Number(t.amount) < 0 ? "-" : "+"}£
-                {Math.abs(Number(t.amount)).toFixed(2)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 // ── Chip button ───────────────────────────────────────────────────────────────
 function ChipButton({
   label,
@@ -264,29 +159,79 @@ function ChipButton({
   );
 }
 
-// ── Loan CTA button ───────────────────────────────────────────────────────────
-function LoanApplyButton() {
+// ── Loan application confirmation card ──────────────────────────────────────────
+// The agent now collects loan details conversationally and submits them
+// itself (see apply_for_loan in lib/agent/mcpGraph.ts) - this just summarises
+// what was submitted, it no longer links out to a separate form.
+const LOAN_PURPOSE_LABELS: Record<string, string> = {
+  mortgage: "Mortgage",
+  personal: "Personal loan",
+  car: "Car loan",
+  home: "Home loan",
+  remortgage: "Remortgage",
+  "buy-to-let": "Buy to let",
+};
+
+function LoanConfirmationCard({ details }: { details?: Record<string, unknown> }) {
+  if (!details) return null;
+
+  const loanPurpose = String(details.loanPurpose ?? "mortgage");
+  const propertyValue = Number(details.propertyValue ?? 0);
+  const deposit = Number(details.deposit ?? 0);
+  const loanAmount = Number(details.loanAmount ?? propertyValue - deposit);
+  const employment = String(details.employment ?? "");
+  const emailSent = !!details.emailSent;
+
   return (
-    <a
-      href="/loan/apply"
+    <div
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
         marginTop: 10,
-        padding: "10px 20px",
-        background: "var(--brand-500, #4f6ef7)",
-        color: "#fff",
-        borderRadius: 8,
-        fontSize: "0.875rem",
-        fontWeight: 500,
-        textDecoration: "none",
-        border: "none",
-        cursor: "pointer",
+        padding: "16px",
+        background: "var(--surface-raised)",
+        border: "1px solid var(--surface-border)",
+        borderRadius: 10,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        maxWidth: 420,
       }}
     >
-      Start loan application →
-    </a>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontWeight: 500,
+          fontSize: "0.875rem",
+          color: "var(--text-primary)",
+        }}
+      >
+        <span>✅</span> Application Submitted for Review
+      </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        🏠 {LOAN_PURPOSE_LABELS[loanPurpose] ?? loanPurpose} • £
+        {propertyValue.toLocaleString()} property, £{deposit.toLocaleString()} deposit
+      </div>
+      <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        💷 Loan amount: £{loanAmount.toLocaleString()}
+      </div>
+      {employment && (
+        <div style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+          💼 {employment}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: emailSent ? "var(--text-muted)" : "var(--error-700, #b91c1c)",
+          marginTop: 4,
+        }}
+      >
+        {emailSent
+          ? "A confirmation email is on its way. A NovaBank advisor will review your details and contact you within 2–3 business days."
+          : "We couldn't send a confirmation email, but your application is submitted. A NovaBank advisor will review it and contact you within 2–3 business days."}
+      </div>
+    </div>
   );
 }
 
@@ -300,13 +245,21 @@ function ChatContent() {
       id: "welcome",
       role: "bot",
       content:
-        "Hi! I'm NovaBanк's AI assistant. I can help you with opening hours, account information, how to open an account, and much more.\n\nIf you're signed in, I can also show your balance, transactions, and spending breakdown.",
+        "Hi! I'm NovaBank's AI assistant. I can help you with opening hours, account information, how to open an account, booking an advisor appointment, applying for a loan, and much more.",
       timestamp: new Date(),
       intent: "greeting",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Round-tripped with every /api/chat call - the server has no memory of
+  // its own between HTTP requests, so these have to be sent back on every
+  // turn or collected loan/appointment facts silently reset each message.
+  const [loanDraft, setLoanDraft] = useState<Record<string, unknown>>({});
+  const [appointmentDraft, setAppointmentDraft] = useState<
+    Record<string, unknown>
+  >({});
 
   // Track which message's chips are currently visible — only the latest bot msg
   const [activeChipsMsgId, setActiveChipsMsgId] = useState<string>("welcome");
@@ -324,12 +277,17 @@ function ChatContent() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Build history from current messages for next API call (last 6 turns)
+  // Build history from current messages for next API call (last 6 turns).
+  // The API expects "assistant" not "bot" - it filters on that role name,
+  // so sending "bot" silently dropped every past bot reply from context.
   function buildHistory(msgs: Message[]): HistoryTurn[] {
     return msgs
       .filter((m) => m.id !== "welcome")
       .slice(-6)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => ({
+        role: m.role === "bot" ? "assistant" : "user",
+        content: m.content,
+      }));
   }
 
   async function sendMessage(text: string) {
@@ -359,9 +317,15 @@ function ChatContent() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, history, loanDraft, appointmentDraft }),
       });
       const data = await res.json();
+
+      // persist the server's updated draft so the next message carries it
+      // forward - without this, collected loan/appointment facts reset
+      // every single turn since the server keeps no state of its own
+      setLoanDraft(data.loanDraft ?? {});
+      setAppointmentDraft(data.appointmentDraft ?? {});
 
       const botId = (Date.now() + 1).toString();
       const botMsg: Message = {
@@ -399,7 +363,7 @@ function ChatContent() {
     }
   }
 
-  const initialChips = session ? INITIAL_ACCOUNT_SUGGESTED : INITIAL_SUGGESTED;
+  const initialChips = INITIAL_SUGGESTED;
   const showInitialChips = messages.length <= 1;
 
   return (
@@ -428,8 +392,7 @@ function ChatContent() {
         >
           <span>🔐</span>
           <span>
-            Signed in as <strong>{session.user?.name}</strong> — I can access
-            your account details.
+            Signed in as <strong>{session.user?.name}</strong>
           </span>
         </div>
       )}
@@ -498,22 +461,16 @@ function ChatContent() {
                       {msg.content}
                     </div>
 
-                    {/* Transaction table */}
-                    {Array.isArray(msg.metadata?.transactions) &&
-                      (msg.metadata!.transactions as unknown[]).length > 0 &&
-                      msg.intent === "transactions" && (
-                        <TransactionTable
-                          transactions={
-                            msg.metadata!.transactions as Record<
-                              string,
-                              unknown
-                            >[]
-                          }
-                        />
-                      )}
-
-                    {/* Loan apply CTA */}
-                    {!!msg.metadata?.showLoanCTA && <LoanApplyButton />}
+                    {/* Loan application confirmation card */}
+                    {!!msg.metadata?.showLoanConfirmation && (
+                      <LoanConfirmationCard
+                        details={
+                          msg.metadata!.loanDetails as
+                            | Record<string, unknown>
+                            | undefined
+                        }
+                      />
+                    )}
 
                     {/* Contextual follow-up chips — only for the latest bot message */}
                     {msg.id === activeChipsMsgId &&
@@ -594,7 +551,7 @@ function ChatContent() {
                 Math.min(e.target.scrollHeight, 120) + "px";
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Ask me anything about NovaBanк..."
+            placeholder="Ask me anything about NovaBank..."
             rows={1}
             disabled={loading}
             style={{
@@ -636,7 +593,7 @@ function ChatContent() {
             textAlign: "center",
           }}
         >
-          NovaBanк AI may make mistakes. For urgent help call 0800 123 4567.
+          NovaBank AI may make mistakes. For urgent help call 0800 123 4567.
         </p>
       </div>
     </div>

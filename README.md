@@ -1,4 +1,4 @@
-# NovaBanк - AI Banking Assistant
+# NovaBank - AI Banking Assistant
 
 A full-stack AI banking demo built across two prototypes. Prototype.1 used a keyword router. Prototype.2 replaced it with a proper MCP agent plus a staff admin panel for reviewing applications.
 
@@ -36,17 +36,14 @@ User message
 Input guardrail (blocks injection attempts)
     |
     v
-Gemini reads message + sees 7 tool schemas
+Gemini reads message + sees 4 tool schemas
     |
     v
 Gemini picks the right tool(s) based on meaning
     |
-    +-- get_account_balance    -> SQLite
-    +-- get_transactions       -> SQLite
-    +-- get_spending_summary   -> SQLite
     +-- search_knowledge_base  -> MCP server -> ChromaDB
-    +-- trigger_loan_form      -> returns CTA flag
-    +-- trigger_appointment    -> returns CTA flag
+    +-- apply_for_loan         -> SQLite + email, returns CTA flag
+    +-- book_appointment       -> SQLite + email, returns CTA flag
     +-- trigger_credit_card    -> returns CTA flag
     |
     v
@@ -59,7 +56,7 @@ Output guardrail (checks for hallucinated figures)
 Response to user
 ```
 
-The model understands "what's left in my account" the same as "show balance". No keyword arrays. No branches to maintain.
+The model understands equivalent phrasings of the same request without keyword arrays or branches to maintain. It has no access to account balances, transactions, or money transfers - those are out of scope by design to keep the agent's blast radius small.
 
 ---
 
@@ -75,9 +72,6 @@ Anyone can ask:
 
 Signed-in customers get:
 
-- Live account balances from SQLite
-- Recent transaction history
-- Spending breakdown by category
 - Inline loan application form
 - Inline appointment booking
 - Inline credit card application
@@ -178,7 +172,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Email                | Password             | Access            |
 | -------------------- | -------------------- | ----------------- |
-| `admin@novabank.com` | `NovaBanк@Admin2025` | Staff portal only |
+| `admin@novabank.com` | `NovaBank@Admin2025` | Staff portal only |
 
 Admin logs straight into `/admin`. Customer nav links are hidden for admin accounts. Regular users are blocked from `/admin`.
 
@@ -191,7 +185,6 @@ bank-agent/
 |
 +-- app/
 |   +-- chat/page.tsx              # Main chat interface
-|   +-- account/page.tsx           # Account dashboard
 |   +-- admin/page.tsx             # Staff portal dashboard
 |   +-- admin/loans/[id]/page.tsx  # Loan review page
 |   +-- admin/appointments/[id]/   # Appointment review page
@@ -261,8 +254,9 @@ Three branches show the build progression:
 - Input guardrail blocks prompt injection before reaching the LLM
 - Output guardrail flags financial responses generated without tool use
 - Conversation history capped at 6 turns
-- Account numbers masked to last 4 digits in all responses
 - Admin and customer accounts have separate passwords
+- The agent has no tools for account balances, transactions, or money
+  transfers - that data surface is not exposed to the LLM at all
 
 ---
 

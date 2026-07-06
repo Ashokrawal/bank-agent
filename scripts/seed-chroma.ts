@@ -44,7 +44,7 @@ async function main() {
   const CHROMA_URL = process.env.CHROMA_URL ?? "http://localhost:8000";
 
   console.log("\n================================================");
-  console.log("  NovaBanк ChromaDB Seeder - Prototype.2");
+  console.log("  NovaBank ChromaDB Seeder - Prototype.2");
   console.log("================================================");
   console.log(`  Documents to embed : ${DOCUMENT_COUNT}`);
   console.log(`  Embedding model    : ${EMBED_MODEL}`);

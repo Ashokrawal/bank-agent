@@ -59,14 +59,14 @@ export default function HomePage() {
             <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--surface-border)", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--brand-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏦</div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: "0.9375rem" }}>NovaBanк AI</div>
+                <div style={{ fontWeight: 600, fontSize: "0.9375rem" }}>NovaBank AI</div>
                 <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Always online</div>
               </div>
               <div style={{ marginLeft: "auto" }}><span className="badge badge-green">● Live</span></div>
             </div>
             <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
               {[
-                { role: "bot", text: "Hi! I'm NovaBanк's AI assistant. How can I help you today?" },
+                { role: "bot", text: "Hi! I'm NovaBank's AI assistant. How can I help you today?" },
                 { role: "user", text: "What documents do I need to open an account?" },
                 { role: "bot", text: "You'll need: a valid photo ID (passport or driving licence), proof of address (utility bill dated within 3 months), and your NI number. Takes about 10 minutes!" },
               ].map((msg, i) => (

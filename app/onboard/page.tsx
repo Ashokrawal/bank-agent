@@ -178,7 +178,7 @@ export default function OnboardPage() {
           Account approved!
         </h1>
         <p style={{ color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.7 }}>
-          Welcome to NovaBanк, <strong>{form.firstName}</strong>!
+          Welcome to NovaBank, <strong>{form.firstName}</strong>!
           Your {ACCOUNT_TYPES.find(a => a.id === form.accountType)?.name} has been opened successfully.
         </p>
         <div className="card" style={{ padding: "16px 20px", margin: "24px 0", textAlign: "left" }}>
@@ -200,7 +200,7 @@ export default function OnboardPage() {
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px" }}>
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 6 }}>
-          Open your NovaBanк account
+          Open your NovaBank account
         </h1>
         <p style={{ color: "var(--text-secondary)" }}>Takes about 10 minutes. FCA regulated and FSCS protected.</p>
       </div>
@@ -374,7 +374,7 @@ export default function OnboardPage() {
           </div>
 
           <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
-            By submitting, you confirm that all information provided is accurate and you agree to NovaBanк's Terms & Conditions and Privacy Policy.
+            By submitting, you confirm that all information provided is accurate and you agree to NovaBank's Terms & Conditions and Privacy Policy.
           </p>
 
           {verifying && (

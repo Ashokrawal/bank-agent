@@ -5,17 +5,12 @@
  * Singleton pattern:  one DB instance cached in Node global across
  * Next.js hot-reloads so we don't re-seed on every request in dev.
  *
- * Schema:  users · accounts · transactions · applications
+ * Schema:  users · applications · loan_applications · appointments · credit_card_applications
  */
 
 import fs from "fs";
 import path from "path";
-import {
-  MOCK_USERS,
-  MOCK_ACCOUNTS,
-  MOCK_TRANSACTIONS,
-  MOCK_APPLICATIONS,
-} from "@/data/mock-bank-data";
+import { MOCK_USERS, MOCK_APPLICATIONS } from "@/data/mock-bank-data";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Row = Record<string, string | number | null>;
@@ -80,6 +75,7 @@ async function getDb(): Promise<SqlDb> {
   } else {
     db = new SQL.Database();
     seedDatabase(db);
+    ensureSchema(db); // seedDatabase doesn't create appointments/credit_card_applications
     persist(db);
     console.log("✅ SQLite seeded with mock data →", DB_PATH);
   }
@@ -106,22 +102,6 @@ function seedDatabase(db: SqlDb) {
       phone TEXT, address TEXT, ni_number TEXT,
       date_of_birth TEXT, kyc_status TEXT DEFAULT 'pending',
       created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
-      account_number TEXT UNIQUE NOT NULL, sort_code TEXT NOT NULL,
-      type TEXT NOT NULL, name TEXT NOT NULL,
-      balance REAL DEFAULT 0, currency TEXT DEFAULT 'GBP',
-      status TEXT DEFAULT 'active',
-      opened_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY, account_id TEXT NOT NULL,
-      date TEXT NOT NULL, description TEXT NOT NULL,
-      amount REAL NOT NULL, type TEXT NOT NULL,
-      category TEXT, balance_after REAL,
-      FOREIGN KEY (account_id) REFERENCES accounts(id)
     );
     CREATE TABLE IF NOT EXISTS applications (
       id TEXT PRIMARY KEY, user_id TEXT, email TEXT, name TEXT,
@@ -175,44 +155,6 @@ function seedDatabase(db: SqlDb) {
         u.date_of_birth,
         u.kyc_status,
         u.created_at,
-      ],
-    );
-  }
-
-  for (const a of MOCK_ACCOUNTS) {
-    run(
-      `INSERT OR IGNORE INTO accounts
-         (id,user_id,account_number,sort_code,type,name,balance,currency,status,opened_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`,
-      [
-        a.id,
-        a.user_id,
-        a.account_number,
-        a.sort_code,
-        a.type,
-        a.name,
-        a.balance,
-        a.currency,
-        a.status,
-        a.opened_at,
-      ],
-    );
-  }
-
-  for (const t of MOCK_TRANSACTIONS) {
-    run(
-      `INSERT OR IGNORE INTO transactions
-         (id,account_id,date,description,amount,type,category,balance_after)
-       VALUES (?,?,?,?,?,?,?,?)`,
-      [
-        t.id,
-        t.account_id,
-        t.date,
-        t.description,
-        t.amount,
-        t.type,
-        t.category,
-        t.balance_after,
       ],
     );
   }
@@ -272,34 +214,6 @@ export async function getUserByEmail(email: string) {
 export async function getUserById(id: string) {
   const r = await dbQuery("SELECT * FROM users WHERE id = ?", [id]);
   return r[0] ?? null;
-}
-
-export async function getAccountsByUserId(userId: string) {
-  return dbQuery(
-    "SELECT * FROM accounts WHERE user_id = ? AND status = 'active' ORDER BY opened_at",
-    [userId],
-  );
-}
-
-export async function getTransactions(
-  accountId: string,
-  fromDate?: string,
-  toDate?: string,
-) {
-  let sql = "SELECT * FROM transactions WHERE account_id = ?";
-  const p: (string | number | null)[] = [accountId];
-
-  if (fromDate) {
-    sql += " AND date >= ?";
-    p.push(fromDate);
-  }
-  if (toDate) {
-    sql += " AND date <= ?";
-    p.push(toDate);
-  }
-  sql += " ORDER BY date DESC LIMIT 100";
-
-  return dbQuery(sql, p);
 }
 
 export async function createApplication(data: {

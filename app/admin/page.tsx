@@ -1,6 +1,6 @@
 /**
  * app/admin/page.tsx
- * NovaBanк Staff Portal - fully responsive
+ * NovaBank Staff Portal - fully responsive
  * Uses design tokens from globals.css
  */
 
@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { getLoanApplications, getAppointments } from "@/lib/db/sqlite";
 import { isAdminEmail } from "@/lib/admin";
 import Link from "next/link";
+import StatusBadge from "@/components/admin/StatusBadge";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -508,15 +509,4 @@ export default async function AdminPage() {
       </div>
     </div>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    pending: "badge badge-amber",
-    approved: "badge badge-green",
-    rejected: "badge badge-red",
-    confirmed: "badge badge-blue",
-    cancelled: "badge badge-gray",
-  };
-  return <span className={styles[status] ?? "badge badge-gray"}>{status}</span>;
 }

@@ -4,7 +4,7 @@ import { Providers } from "@/components/layout/Providers";
 import { Navbar } from "@/components/layout/Navbar";
 
 export const metadata: Metadata = {
-  title: { default: "NovaBanк", template: "%s | NovaBanк" },
+  title: { default: "NovaBank", template: "%s | NovaBank" },
   description: "Smart banking powered by AI.",
 };
 

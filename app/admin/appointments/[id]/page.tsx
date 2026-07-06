@@ -11,6 +11,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import StatusBadge from "@/components/admin/StatusBadge";
 
 interface Appointment {
   id: string;
@@ -56,8 +57,6 @@ export default function AppointmentDetailPage() {
       body: JSON.stringify({ status, notes }),
     });
 
-    console.log("PATCH status:", res.status); // add this
-
     if (res.ok) {
       setTimeout(() => router.push("/admin"), 100);
     } else {
@@ -69,18 +68,47 @@ export default function AppointmentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500 text-sm">Loading appointment...</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--surface-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          Loading appointment...
+        </p>
       </div>
     );
   }
 
   if (!appointment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-900 font-medium">Appointment not found</p>
-          <Link href="/admin" className="text-blue-600 text-sm mt-2 block">
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "var(--surface-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <p style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+            Appointment not found
+          </p>
+          <Link
+            href="/admin"
+            style={{
+              color: "var(--text-brand)",
+              fontSize: "0.875rem",
+              marginTop: 8,
+              display: "block",
+              textDecoration: "none",
+            }}
+          >
             Back to dashboard
           </Link>
         </div>
@@ -90,52 +118,102 @@ export default function AppointmentDetailPage() {
 
   const isPending = appointment.status === "pending";
 
+  const fields = [
+    { label: "Advisor type", value: appointment.advisor_type },
+    { label: "Preferred date", value: appointment.preferred_date },
+    { label: "Preferred time", value: appointment.preferred_time },
+    { label: "Status", value: appointment.status },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ background: "var(--surface-subtle)", minHeight: "100vh" }}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
+      <div
+        style={{
+          background: "var(--surface-raised)",
+          borderBottom: "1px solid var(--surface-border)",
+          padding: "20px 16px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 720,
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
+          <div style={{ fontSize: "0.875rem" }}>
             <Link
               href="/admin"
-              className="text-sm text-gray-500 hover:text-gray-700"
+              style={{ color: "var(--text-muted)", textDecoration: "none" }}
             >
               Staff portal
             </Link>
-            <span className="text-gray-300 mx-2">/</span>
-            <span className="text-sm text-gray-900">Appointment</span>
+            <span style={{ color: "var(--text-muted)", margin: "0 8px" }}>/</span>
+            <span style={{ color: "var(--text-primary)" }}>Appointment</span>
           </div>
           <StatusBadge status={appointment.status} />
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Customer details */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h1 className="text-xl font-semibold text-gray-900">
+        <div className="card" style={{ padding: 24 }}>
+          <h1 style={{ fontSize: "1.25rem", fontWeight: 600, color: "var(--text-primary)" }}>
             {appointment.user_name}
           </h1>
-          <p className="text-gray-500 text-sm mt-0.5">{appointment.email}</p>
-          <p className="text-gray-400 text-xs mt-1">
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: 2 }}>
+            {appointment.email}
+          </p>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: 6 }}>
             Booked {new Date(appointment.created_at).toLocaleString("en-GB")}
           </p>
         </div>
 
         {/* Appointment details */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+        <div className="card" style={{ padding: 24 }}>
+          <h2
+            style={{
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
+              marginBottom: 16,
+            }}
+          >
             Booking details
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: "Advisor type", value: appointment.advisor_type },
-              { label: "Preferred date", value: appointment.preferred_date },
-              { label: "Preferred time", value: appointment.preferred_time },
-              { label: "Status", value: appointment.status },
-            ].map((item) => (
-              <div key={item.label} className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">{item.label}</p>
-                <p className="text-sm font-semibold text-gray-900 mt-0.5 capitalize">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {fields.map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  background: "var(--surface-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: 12,
+                }}
+              >
+                <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{item.label}</p>
+                <p
+                  style={{
+                    fontSize: "0.9375rem",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    marginTop: 2,
+                    textTransform: "capitalize",
+                  }}
+                >
                   {item.value}
                 </p>
               </div>
@@ -143,9 +221,16 @@ export default function AppointmentDetailPage() {
           </div>
 
           {appointment.reason && (
-            <div className="mt-4 bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Reason</p>
-              <p className="text-sm text-gray-700 mt-0.5">
+            <div
+              style={{
+                marginTop: 16,
+                background: "var(--surface-subtle)",
+                borderRadius: "var(--radius-md)",
+                padding: 12,
+              }}
+            >
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Reason</p>
+              <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginTop: 2 }}>
                 {appointment.reason}
               </p>
             </div>
@@ -154,12 +239,24 @@ export default function AppointmentDetailPage() {
 
         {/* Already reviewed */}
         {!isPending && (
-          <div className="bg-gray-100 rounded-xl border border-gray-200 p-6">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <div className="card" style={{ padding: 24, background: "var(--surface-subtle)" }}>
+            <h2
+              style={{
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 8,
+              }}
+            >
               Decision
             </h2>
-            <p className="text-sm text-gray-700 capitalize">
-              {appointment.status} on{" "}
+            <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+              <span style={{ fontWeight: 600, textTransform: "capitalize", color: "var(--text-primary)" }}>
+                {appointment.status}
+              </span>{" "}
+              on{" "}
               {appointment.reviewed_at
                 ? new Date(appointment.reviewed_at).toLocaleString("en-GB")
                 : "unknown"}
@@ -169,12 +266,29 @@ export default function AppointmentDetailPage() {
 
         {/* Review form */}
         {isPending && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
+          <div className="card" style={{ padding: 24 }}>
+            <h2
+              style={{
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 16,
+              }}
+            >
               Make a decision
             </h2>
 
-            <label className="block text-sm text-gray-700 mb-1 font-medium">
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                color: "var(--text-secondary)",
+                marginBottom: 6,
+              }}
+            >
               Notes (optional)
             </label>
             <textarea
@@ -182,23 +296,50 @@ export default function AppointmentDetailPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Add any notes for the customer..."
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="input-field"
+              style={{ resize: "none" }}
             />
 
-            {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+            {error && (
+              <p style={{ color: "var(--error-700)", fontSize: "0.875rem", marginTop: 8 }}>
+                {error}
+              </p>
+            )}
 
-            <div className="flex gap-3 mt-4">
+            <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
               <button
                 onClick={() => handleDecision("confirmed")}
                 disabled={submitting}
-                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  background: submitting ? "var(--surface-border)" : "#16a34a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  transition: "background 0.15s",
+                }}
               >
                 {submitting ? "Saving..." : "Confirm appointment"}
               </button>
               <button
                 onClick={() => handleDecision("cancelled")}
                 disabled={submitting}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  background: submitting ? "var(--surface-border)" : "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  transition: "background 0.15s",
+                }}
               >
                 {submitting ? "Saving..." : "Cancel appointment"}
               </button>
@@ -207,21 +348,5 @@ export default function AppointmentDetailPage() {
         )}
       </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    pending: "bg-amber-50 text-amber-700 border-amber-200",
-    confirmed: "bg-green-50 text-green-700 border-green-200",
-    cancelled: "bg-red-50 text-red-700 border-red-200",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${styles[status] ?? styles.pending}`}
-    >
-      {status}
-    </span>
   );
 }

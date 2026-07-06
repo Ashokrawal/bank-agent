@@ -8,14 +8,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { dbRun, dbQuery } from "@/lib/db/sqlite";
+import { isAdminEmail } from "@/lib/admin";
 
 export const runtime = "nodejs";
-
-const ADMIN_EMAILS = ["admin@novabank.com", "demo@novabank.com"];
-
-function isAdmin(email: string | null | undefined): boolean {
-  return ADMIN_EMAILS.includes(email ?? "");
-}
 
 export async function PATCH(
   req: NextRequest,
@@ -26,7 +21,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  if (!isAdmin(session.user.email)) {
+  if (!isAdminEmail(session.user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

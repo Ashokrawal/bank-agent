@@ -12,7 +12,7 @@ function SignInContent() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const raw = searchParams.get("callbackUrl") || "/account";
+  const raw = searchParams.get("callbackUrl") || "/chat";
   // Only allow same-origin redirects to prevent open-redirect attacks.
   // NextAuth middleware passes full URLs (http://localhost:3000/path), so allow those too.
   const callbackUrl = (() => {
@@ -22,7 +22,7 @@ function SignInContent() {
       if (url.origin === window.location.origin)
         return url.pathname + url.search;
     } catch {}
-    return "/account";
+    return "/chat";
   })();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -87,7 +87,7 @@ function SignInContent() {
               letterSpacing: "-0.02em",
             }}
           >
-            Sign in to NovaBanк
+            Sign in to NovaBank
           </h1>
           <p
             style={{
@@ -131,7 +131,7 @@ function SignInContent() {
           <div
             onClick={() => {
               setEmail("admin@novabank.com");
-              setPassword("NovaBanк@Admin2025");
+              setPassword("NovaBank@Admin2025");
             }}
             style={{
               background: "var(--surface-subtle)",
@@ -160,7 +160,7 @@ function SignInContent() {
               Staff portal - click to fill
             </p>
             <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              admin@novabank.com · NovaBanк@Admin2025
+              admin@novabank.com · NovaBank@Admin2025
             </p>
           </div>
 

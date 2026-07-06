@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { createAppointment, getAppointments } from "@/lib/db/sqlite";
+import { isAdminEmail } from "@/lib/admin";
 import { v4 as uuid } from "uuid";
 
 export const runtime = "nodejs";
 
+// GET - admin sees all, customers see only their own
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session)
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  const userId = (session.user as { id?: string }).id ?? "";
+
+  const admin = isAdminEmail(session.user?.email);
+  const userId = admin ? undefined : ((session.user as { id?: string }).id ?? "");
+
   const appointments = await getAppointments(undefined, userId);
   return NextResponse.json({ appointments });
 }

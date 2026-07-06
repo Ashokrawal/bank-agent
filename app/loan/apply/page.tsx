@@ -365,21 +365,6 @@ export default function LoanApplyPage() {
               padding: "10px 20px",
               borderRadius: 8,
               cursor: "pointer",
-              border: "1px solid var(--color-border-secondary)",
-              background: "var(--color-background-secondary)",
-              color: "var(--color-text-primary)",
-              fontFamily: "inherit",
-              fontSize: "0.875rem",
-            }}
-          >
-            Back to chat
-          </button>
-          <button
-            onClick={() => router.push("/account")}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              cursor: "pointer",
               border: "none",
               background: "var(--brand-500, #4f6ef7)",
               color: "#fff",
@@ -388,7 +373,7 @@ export default function LoanApplyPage() {
               fontWeight: 500,
             }}
           >
-            View my account
+            Back to chat
           </button>
         </div>
       </div>
@@ -577,7 +562,7 @@ export default function LoanApplyPage() {
             }}
           >
             I confirm the information provided is accurate. I understand this is
-            an initial application and NovaBanк may request further
+            an initial application and NovaBank may request further
             documentation before a final decision is made.
           </span>
         </label>
